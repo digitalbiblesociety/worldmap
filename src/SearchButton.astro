@@ -175,6 +175,11 @@ const mergedClasses = { ...defaultClasses, ...classes };
         
         
         searchResults.style.padding = '0.5rem';
+        const itemHeight = 28;
+        const maxVisibleItems = 10;
+        const resultHeight = Math.min(matches.length, maxVisibleItems) * itemHeight + 16;
+        searchResults.style.maxHeight = `${resultHeight}px`;
+        searchResults.style.overflowY = matches.length > maxVisibleItems ? 'auto' : 'hidden';
         
       } else {
         searchResults.innerHTML = '<div class="px-2 py-1 text-stone-400 text-sm">No countries found</div>';
