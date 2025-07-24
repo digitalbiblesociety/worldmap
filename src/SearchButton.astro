@@ -1,0 +1,227 @@
+---
+interface Props {
+  countryNames: Record<string, string>;
+  onCountrySelect?: (isoCode: string) => void;
+  classes?: {
+    searchButton?: string;
+    searchContainer?: string;
+    searchInput?: string;
+    searchResults?: string;
+    searchResultItem?: string;
+  };
+}
+
+const defaultClasses = {
+  searchButton: "text-white text-lg bg-stone-900 dark:bg-stone-950 rounded-lg w-8 h-8 mt-2 flex items-center justify-center relative cursor-pointer hover:bg-stone-800 transition-colors",
+  searchContainer: "absolute left-full bg-stone-900 dark:bg-stone-950 rounded-r-lg -ml-2 px-2 min-w-[250px] opacity-0 scale-x-0 origin-left transition-all duration-300 ease-out pointer-events-none",
+  searchInput: "w-full px-2 py-1 rounded bg-stone-800 text-white placeholder-stone-400 text-sm",
+  searchResults: "absolute top-full left-0 right-0 mt-1 bg-stone-900 dark:bg-stone-950 rounded-lg shadow-lg overflow-hidden transition-all duration-300 ease-out",
+  searchResultItem: "px-2 py-1 text-white hover:bg-stone-700 cursor-pointer text-sm rounded"
+};
+
+const { countryNames, onCountrySelect, classes = {} } = Astro.props;
+const mergedClasses = { ...defaultClasses, ...classes };
+---
+
+<div id="search-button" title="Search Countries" class={mergedClasses.searchButton}>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="11" cy="11" r="8"></circle>
+    <path d="m21 21-4.35-4.35"></path>
+  </svg>
+  <div id="search-container" class={mergedClasses.searchContainer}>
+    <div class="relative">
+      <input 
+        id="search-input" 
+        type="text" 
+        placeholder="Search countries..." 
+        class={mergedClasses.searchInput}
+      />
+      <div id="search-results" class={mergedClasses.searchResults}></div>
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ countryNames, onCountrySelect }}>
+  function initializeSearch() {
+    const searchButton = document.getElementById('search-button');
+    const searchContainer = document.getElementById('search-container');
+    const searchInput = document.getElementById('search-input');
+    const searchResults = document.getElementById('search-results');
+
+    if (!searchButton || !searchContainer || !searchInput || !searchResults) return;
+
+    let searchOpen = false;
+    let selectedIndex = -1;
+    
+    
+    searchResults.style.maxHeight = '0px';
+    searchResults.style.padding = '0';
+
+    searchButton.addEventListener('click', (e) => {
+      if (e.target.closest('#search-container')) return;
+      
+      searchOpen = !searchOpen;
+      if (searchOpen) {
+        searchContainer.classList.add('opacity-100', 'scale-x-100');
+        searchContainer.classList.remove('opacity-0', 'scale-x-0', 'pointer-events-none');
+        setTimeout(() => searchInput.focus(), 300);
+      } else {
+        searchContainer.classList.remove('opacity-100', 'scale-x-100');
+        searchContainer.classList.add('opacity-0', 'scale-x-0', 'pointer-events-none');
+      }
+    });
+
+    
+    document.addEventListener('click', (e) => {
+      if (!searchButton.contains(e.target)) {
+        searchOpen = false;
+        searchContainer.classList.remove('opacity-100', 'scale-x-100');
+        searchContainer.classList.add('opacity-0', 'scale-x-0', 'pointer-events-none');
+      }
+    });
+
+    function updateSelection() {
+      const items = searchResults.querySelectorAll('[data-iso]');
+      items.forEach((item, index) => {
+        if (index === selectedIndex) {
+          item.classList.add('bg-stone-700');
+        } else {
+          item.classList.remove('bg-stone-700');
+        }
+      });
+    }
+
+    function fuzzySearch(query, text) {
+      query = query.toLowerCase();
+      text = text.toLowerCase();
+      
+      let queryIndex = 0;
+      let textIndex = 0;
+      
+      while (queryIndex < query.length && textIndex < text.length) {
+        if (query[queryIndex] === text[textIndex]) {
+          queryIndex++;
+        }
+        textIndex++;
+      }
+      
+      return queryIndex === query.length;
+    }
+
+    searchInput.addEventListener('keydown', (e) => {
+      const items = searchResults.querySelectorAll('[data-iso]');
+      
+      switch(e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          if (items.length > 0) {
+            selectedIndex = (selectedIndex + 1) % items.length;
+            updateSelection();
+          }
+          break;
+          
+        case 'ArrowUp':
+          e.preventDefault();
+          if (items.length > 0) {
+            selectedIndex = selectedIndex <= 0 ? items.length - 1 : selectedIndex - 1;
+            updateSelection();
+          }
+          break;
+          
+        case 'Enter':
+          e.preventDefault();
+          if (selectedIndex >= 0 && selectedIndex < items.length) {
+            const selectedItem = items[selectedIndex];
+            const isoCode = selectedItem.getAttribute('data-iso');
+            selectCountry(isoCode);
+          }
+          break;
+          
+        case 'Escape':
+          e.preventDefault();
+          closeSearch();
+          break;
+      }
+    });
+
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.trim();
+      
+      
+      if (query.length === 0) {
+        searchResults.style.maxHeight = '0px';
+        searchResults.style.padding = '0';
+        setTimeout(() => {
+          searchResults.innerHTML = '';
+        }, 300);
+        return;
+      }
+
+      const matches = [];
+      for (const [isoCode, countryName] of Object.entries(countryNames)) {
+        if (fuzzySearch(query, countryName) || countryName.toLowerCase().includes(query.toLowerCase())) {
+          matches.push({ isoCode, countryName });
+        }
+      }
+
+      const hasResults = matches.length > 0;
+      if (hasResults) {
+        searchResults.innerHTML = matches
+          
+          .map(({ isoCode, countryName }) => 
+            `<div class="px-2 py-1 text-white hover:bg-stone-700 cursor-pointer text-sm rounded" data-iso="${isoCode}">${countryName}</div>`
+          )
+          .join('');
+        
+        
+        searchResults.style.padding = '0.5rem';
+        
+      } else {
+        searchResults.innerHTML = '<div class="px-2 py-1 text-stone-400 text-sm">No countries found</div>';
+        searchResults.style.padding = '0.5rem';
+        searchResults.style.maxHeight = '3rem';
+      }
+
+      
+      searchResults.querySelectorAll('[data-iso]').forEach((item, index) => {
+        item.addEventListener('mouseenter', () => {
+          selectedIndex = index;
+          updateSelection();
+        });
+        
+        item.addEventListener('click', () => {
+          const isoCode = item.getAttribute('data-iso');
+          selectCountry(isoCode);
+        });
+      });
+    });
+
+    function selectCountry(isoCode) {
+      
+      const event = new CustomEvent('countrySelected', { 
+        detail: { isoCode },
+        bubbles: true 
+      });
+      document.dispatchEvent(event);
+      
+      closeSearch();
+    }
+
+    function closeSearch() {
+      searchOpen = false;
+      searchContainer.classList.remove('opacity-100', 'scale-x-100');
+      searchContainer.classList.add('opacity-0', 'scale-x-0', 'pointer-events-none');
+      searchInput.value = '';
+      searchResults.style.maxHeight = '0px';
+      searchResults.style.padding = '0';
+      setTimeout(() => {
+        searchResults.innerHTML = '';
+      }, 300);
+      selectedIndex = -1;
+    }
+  }
+
+  
+  document.addEventListener('DOMContentLoaded', initializeSearch);
+  document.addEventListener('astro:after-swap', initializeSearch);
+</script>

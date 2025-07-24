@@ -1,0 +1,63 @@
+---
+const { countryData, dataViews = [], activeView, style } = Astro.props;
+import countryCircles from './CountryCircles.json';
+
+// Find the active data view configuration
+const currentView = dataViews.find(view => view.id === activeView) || dataViews[0];
+---
+
+<g data-view-group={activeView} style={style}>
+    {
+        countryCircles.map(country => {
+            const data = countryData[country.id];
+            if (!data || !currentView) return null;
+
+            const primaryField = currentView.fields.primary;
+            const secondaryField = currentView.fields.secondary;
+            
+            const hasPrimary = primaryField && data[primaryField];
+            const hasSecondary = secondaryField && data[secondaryField];
+
+            if (!hasPrimary && !hasSecondary) return null;
+            
+            const primaryX = hasPrimary ? country.textX - (String(data[primaryField]).length > 1 ? 9 : 5) : null;
+            const secondaryX = hasSecondary ? country.textX - (String(data[secondaryField]).length > 1 ? 10 : 5) : null;
+
+            const primaryClass = currentView.classes?.primary || 'is-primary-data';
+            const secondaryClass = currentView.classes?.secondary || 'is-secondary-data';
+            const circleClass = currentView.classes?.circle || '';
+
+            return (
+                <g id={`cc_country_${country.id}`} data-view={currentView.id} style="pointer-events: none;">
+                    <circle cx={country.cx} cy={country.cy} r="10" id={`cc_${country.id}`}
+                    class={`${hasPrimary ? primaryClass : ''} ${hasSecondary ? secondaryClass : ''} ${circleClass}`}
+                    />
+                    
+                    {hasPrimary && (
+                        <text
+                            x={primaryX}
+                            y={country.textY + 5}
+                            id={`primary_${country.id}`}
+                            fill="#FFF"
+                            class={`select-none ${primaryClass}`}
+                        >
+                            {data[primaryField]}
+                        </text>
+                    )}
+                    
+                    {hasSecondary && (
+                        <text
+                            x={secondaryX}
+                            y={country.textY + 5}
+                            id={`secondary_${country.id}`}
+                            fill="#FFF"
+                            class={`${secondaryClass} select-none`}
+                        >
+                            {data[secondaryField]}
+                        </text>
+                    )}
+                </g>
+            );
+        })
+    }
+</g>

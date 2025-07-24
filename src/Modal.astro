@@ -1,0 +1,198 @@
+---
+interface Props {
+    id: string;
+    classes?: {
+        overlay?: string;
+        modal?: string;
+        closeBtn?: string;
+        content?: string;
+    };
+}
+
+const { id, classes = {} } = Astro.props;
+---
+
+<div
+    id={id}
+    class={`${classes.overlay} opacity-0 pointer-events-none`}
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+>
+    <div class={classes.modal} role="document">
+        <button id={`${id}-close`} class={classes.closeBtn} aria-label="Close modal"> X </button>
+        <div id={`${id}-body`} class={classes.content}>
+            <slot>
+                <!-- Default content will be injected here by JavaScript -->
+            </slot>
+        </div>
+    </div>
+</div>
+
+<script define:vars={{ id }}>
+    document.addEventListener("DOMContentLoaded", initializeModal);
+    document.addEventListener("astro:after-swap", initializeModal);
+
+    function initializeModal() {
+        const modal = document.getElementById(id);
+        const closeBtn = document.getElementById(`${id}-close`);
+
+        if (!modal || !closeBtn) return;
+
+        closeBtn.addEventListener("click", () => closeModal(id));
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) {
+                closeModal(id);
+            }
+        });
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && modal && !modal.classList.contains("pointer-events-none")) {
+                closeModal(id);
+            }
+        });
+    }
+
+    function openModal(modalId, content = "") {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+
+        const modalContent = modal.querySelector(`#${modalId}-body`);
+        const modalPanel = modal.querySelector('[role="document"]');
+
+        if (modalContent && content) {
+            modalContent.innerHTML = content;
+        }
+        modal.classList.remove("opacity-0", "pointer-events-none");
+        modal.classList.add("opacity-100");
+        modal.setAttribute("aria-hidden", "false");
+
+        setTimeout(() => {
+            if (modalPanel) {
+                modalPanel.classList.remove("translate-x-full");
+                modalPanel.classList.add("translate-x-0");
+            }
+        }, 10);
+
+        
+        const firstFocusable = modal.querySelector(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        if (firstFocusable) {
+            setTimeout(() => firstFocusable.focus(), 300);
+        }
+    }
+
+    function clearModalContent(modalContent) {
+        if (!modalContent) return;
+
+        const hiddenElements = modalContent.querySelectorAll('[style*="display: none"], [data-auto-hidden="true"]');
+        hiddenElements.forEach((el) => {
+            el.style.display = "";
+            el.removeAttribute("data-auto-hidden");
+        });
+
+        modalContent.innerHTML = "";
+    }
+
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+
+        const modalPanel = modal.querySelector('[role="document"]');
+        const modalContent = modal.querySelector(`#${modalId}-body`);
+
+        if (modalPanel) {
+            modalPanel.classList.remove("translate-x-0");
+            modalPanel.classList.add("translate-x-full");
+        }
+
+        setTimeout(() => {
+            modal.classList.remove("opacity-100");
+            modal.classList.add("opacity-0", "pointer-events-none");
+            modal.setAttribute("aria-hidden", "true");
+
+            
+            if (modalContent) {
+                clearModalContent(modalContent);
+            }
+        }, 300);
+    }
+
+    function populateDataAttributes(element, isoCode, countryName, countryData) {
+        const elementsToFill = element.querySelectorAll("[data-fill]");
+
+        elementsToFill.forEach((el) => {
+            const fillValue = el.getAttribute("data-fill");
+            const formatter = el.getAttribute("data-format");
+            let value = "";
+            let hasData = false;
+
+            if (fillValue === "isoCode") {
+                value = isoCode;
+                hasData = !!value;
+            } else if (fillValue === "countryName") {
+                value = countryName;
+                hasData = !!value;
+            } else if (fillValue.startsWith("countryData.")) {
+                const key = fillValue.replace("countryData.", "");
+                value = countryData[key];
+                hasData = value !== undefined && value !== null && value !== "";
+                if (value === 0) hasData = true;
+            }
+
+            if (!hasData) {
+                el.style.display = "none";
+                return;
+            }
+
+            if (formatter && value !== "") {
+                if (formatter === "number") {
+                    value = parseInt(value.replace(/,/g, "")).toLocaleString();
+                } else if (formatter === "millions") {
+                    value = (parseInt(value.replace(/,/g, "")) / 1000000).toFixed(1);
+                }
+            }
+
+            el.textContent = value;
+            el.style.display = "";
+        });
+
+        hideEmptyGridItems(element);
+    }
+
+    function hideEmptyGridItems(element) {
+        
+        const selectors = [
+            
+            
+            
+            
+            
+            
+        ];
+
+        const gridItems = element.querySelectorAll(selectors.join(", "));
+
+        gridItems.forEach((gridItem) => {
+            const dataElements = gridItem.querySelectorAll("[data-fill]");
+            if (dataElements.length === 0) return;
+
+            const allHidden = Array.from(dataElements).every(
+                (el) => el.style.display === "none" || getComputedStyle(el).display === "none",
+            );
+
+            if (allHidden) {
+                gridItem.style.display = "none";
+                gridItem.setAttribute("data-auto-hidden", "true");
+            } else {
+                gridItem.style.display = "";
+                gridItem.removeAttribute("data-auto-hidden");
+            }
+        });
+    }
+
+    window.openModal = openModal;
+    window.closeModal = closeModal;
+    window.populateDataAttributes = populateDataAttributes;
+</script>

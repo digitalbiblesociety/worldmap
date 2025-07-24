@@ -1,0 +1,442 @@
+---
+import { countryPaths } from "./countryPaths.js";
+import { defaultCountryNames } from "./countryNames.js";
+import { createNormalizedObject } from "./countryDataHelpers.js";
+import CirclePoints from "./CountryRankCircles/CirclePoints.astro";
+import SearchButton from "./SearchButton.astro";
+import Modal from "./Modal.astro";
+
+interface DataView {
+    id: string;
+    label: string;
+    fields: {
+        primary?: string;
+        secondary?: string;
+    };
+    classes?: {
+        primary?: string;
+        secondary?: string;
+        circle?: string;
+    };
+}
+
+interface Props {
+    classes?: {
+        mapControls?: string;
+        zoomButton?: string;
+        tabs?: string;
+        tab?: string;
+        activeTab?: string;
+        worldMap?: string;
+        tooltip?: string;
+        modal?: {
+            overlay?: string;
+            modal?: string;
+            closeBtn?: string;
+            content?: string;
+        };
+        search?: {
+            searchButton?: string;
+            searchContainer?: string;
+            searchInput?: string;
+            searchResults?: string;
+            searchResultItem?: string;
+        };
+    };
+    linkPath?: string;
+    countryNames?: Record<string, string>;
+    mode?: "link" | "modal";
+    countryDetails?: Record<string, object>;
+    normalizedFields?: any;
+    dataViews?: DataView[];
+    defaultView?: string;
+}
+
+const defaultClasses = {
+    mapControls: "z-30 absolute top-4 left-4 flex flex-col",
+    zoomButton: "text-white text-2xl bg-stone-900 dark:bg-stone-950 rounded-lg w-8 h-8 mt-2",
+    tabs: "z-30 absolute top-4 right-4 flex bg-stone-900 dark:bg-stone-950 rounded-lg p-1",
+    tab: "px-3 py-2 text-sm text-white cursor-pointer rounded transition-colors hover:bg-stone-700",
+    activeTab: "bg-stone-700 text-white",
+    worldMap: "w-full h-[75vh] z-0 relative dark:bg-stone-900",
+    tooltip: "absolute hidden bg-stone-800 text-white px-2 rounded-md pointer-events-none",
+    modal: {
+        overlay: "fixed inset-0 bg-black bg-opacity-50 z-50 transition-opacity duration-300",
+        modal: "fixed top-[82px] right-0 h-screen bg-white dark:bg-stone-800 shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-full",
+        closeBtn: "absolute top-4 right-4 text-2xl text-stone-600 dark:text-stone-300 cursor-pointer z-10",
+        content: "p-6 pt-16 h-full overflow-y-auto",
+    },
+};
+
+const {
+    classes = {},
+    linkPath = "",
+    countryNames,
+    mode = "link",
+    countryDetails = {},
+    normalizedFields = {},
+    dataViews = [],
+    defaultView,
+} = Astro.props;
+
+const mergedClasses = {
+    ...defaultClasses,
+    ...classes,
+    modal: { ...defaultClasses.modal, ...classes.modal },
+};
+const mergedCountryNames = { ...defaultCountryNames, ...countryNames };
+
+const normalizedDetails = createNormalizedObject(countryDetails, normalizedFields);
+---
+
+{
+    dataViews.length > 0 && (
+        <div id="data-tabs" class={mergedClasses.tabs}>
+            {dataViews.map((view) => (
+                <button
+                    class={`${mergedClasses.tab} ${view.id === (defaultView || dataViews[0]?.id) ? mergedClasses.activeTab : ""}`}
+                    data-view-id={view.id}
+                >
+                    {view.label}
+                </button>
+            ))}
+        </div>
+    )
+}
+
+<div id="map-controls" class={mergedClasses.mapControls}>
+    <button id="zoom-in-button" title="Zoom In" class={mergedClasses.zoomButton}>+</button>
+    <button id="zoom-out-button" title="Zoom Out" class={mergedClasses.zoomButton}>-</button>
+    <SearchButton countryNames={mergedCountryNames} classes={classes.search} />
+</div>
+
+<svg
+    id="worldmap"
+    class={mergedClasses.worldMap}
+    xmlns="http:
+  viewBox="
+    83
+    45
+    2528
+    1200"
+    data-current-view={defaultView || dataViews[0]?.id}
+>
+    {
+        Object.entries(countryPaths).map(([isoCode, path]) => {
+            const normalizedDetail = normalizedDetails[isoCode] || {};
+            const dataAttrString = Object.entries(normalizedDetail)
+                .map(([key, value]) => `data-${key}="${String(value)}"`)
+                .join(" ");
+
+            return (
+                <Fragment
+                    set:html={`
+          <a
+            ${mode === "link" ? `href="${linkPath}${isoCode}"` : ""}
+            data-iso="${isoCode}"
+            title="${mergedCountryNames[isoCode]}"
+            ${dataAttrString}
+            class="country-path"
+            style="cursor: pointer;"
+          >
+            ${path}
+          </a>
+        `}
+                />
+            );
+        })
+    }
+    {
+        dataViews.map((view) => (
+            <CirclePoints
+                countryData={countryDetails}
+                dataViews={[view]}
+                activeView={view.id}
+                style={view.id !== (defaultView || dataViews[0]?.id) ? "display: none;" : ""}
+            />
+        ))
+    }
+</svg>
+
+<div id="tooltip" class={mergedClasses.tooltip}></div>
+
+<Modal id="country-modal" classes={mergedClasses.modal}>
+    <slot name="modal-content">
+        <!-- Default content will be injected here by JavaScript -->
+    </slot>
+</Modal>
+
+<script define:vars={{ mode, dataViews, defaultView, mergedCountryNames, countryDetails }}>
+    document.addEventListener("DOMContentLoaded", initializeSvgInteractions);
+    document.addEventListener("astro:after-swap", initializeSvgInteractions);
+
+    let originalSlotTemplate = null;
+
+    function captureSlotTemplate() {
+        if (!originalSlotTemplate) {
+            const slotContent = document.querySelector("#country-modal-body > div");
+            if (
+                slotContent &&
+                slotContent.innerHTML.trim() &&
+                !slotContent.innerHTML.includes("Default content will be injected")
+            ) {
+                originalSlotTemplate = slotContent.cloneNode(true);
+            }
+        }
+    }
+
+    function openCountryModal(isoCode) {
+        const countryName = mergedCountryNames[isoCode] || "Unknown";
+        const countryData = countryDetails[isoCode] || {};
+
+        captureSlotTemplate();
+
+        let content;
+
+        if (originalSlotTemplate) {
+            const clonedContent = originalSlotTemplate.cloneNode(true);
+            window.populateDataAttributes(clonedContent, isoCode, countryName, countryData);
+            content = clonedContent.outerHTML;
+        } else {
+            content = `<h2 class="text-2xl font-bold mb-4 text-stone-900 dark:text-white">${countryName}</h2>
+	      <div class="space-y-2">
+	        <p class="text-stone-600 dark:text-stone-300"><span class="font-semibold">Country code:</span> ${isoCode}</p>
+	        ${
+                Object.keys(countryData).length > 0
+                    ? Object.entries(countryData)
+                          .map(
+                              ([key, value]) =>
+                                  `<p class="text-stone-600 dark:text-stone-300"><span class="font-semibold">${key}:</span> ${value}</p>`,
+                          )
+                          .join("")
+                    : '<p class="text-stone-500 dark:text-stone-400 italic">No additional data available</p>'
+            }
+	      </div>`;
+        }
+
+        window.openModal("country-modal", content);
+    }
+
+    function initializeSvgInteractions() {
+        const svg = document.getElementById("worldmap");
+        if (!svg) return;
+
+        captureSlotTemplate();
+
+        const tooltip = document.getElementById("tooltip");
+        let isPanning = false;
+        let startX = 0,
+            startY = 0;
+        let viewBox = { x: 0, y: 0, width: 800, height: 600 };
+        let selectedCountry = null;
+
+        function setInitialViewBox() {
+            const svgRect = svg.getBoundingClientRect();
+            const contentWidth = 2528;
+            const contentHeight = 1200;
+            const contentAspectRatio = contentWidth / contentHeight;
+            const containerAspectRatio = svgRect.width / svgRect.height;
+
+            let viewBoxWidth, viewBoxHeight;
+            if (containerAspectRatio > contentAspectRatio) {
+                viewBoxHeight = contentHeight;
+                viewBoxWidth = contentHeight * containerAspectRatio;
+            } else {
+                viewBoxWidth = contentWidth;
+                viewBoxHeight = contentWidth / containerAspectRatio;
+            }
+            viewBox = {
+                x: 83 - (viewBoxWidth - contentWidth) / 2,
+                y: 45 - (viewBoxHeight - contentHeight) / 2,
+                width: viewBoxWidth,
+                height: viewBoxHeight,
+            };
+            svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+        }
+
+        function showTooltip(event) {
+            const target = event.target.closest("a, button");
+            if (!target) return;
+            const title = target.getAttribute("title");
+            if (!title) return;
+            const svgRect = svg.getBoundingClientRect();
+            const mouseX = event.clientX - svgRect.left;
+            const mouseY = event.clientY - svgRect.top;
+            tooltip.style.left = `${mouseX + 10}px`;
+            tooltip.style.top = `${mouseY + 10}px`;
+            tooltip.innerText = title;
+            tooltip.style.display = "block";
+        }
+
+        function hideTooltip() {
+            tooltip.style.display = "none";
+        }
+
+        svg.addEventListener("mouseover", showTooltip);
+        svg.addEventListener("mousemove", showTooltip);
+        svg.addEventListener("mouseout", hideTooltip);
+
+        svg.addEventListener("mousedown", (e) => {
+            isPanning = true;
+            startX = e.clientX;
+            startY = e.clientY;
+        });
+
+        svg.addEventListener("mousemove", (e) => {
+            if (isPanning) {
+                viewBox.x += startX - e.clientX;
+                viewBox.y += startY - e.clientY;
+                svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+                startX = e.clientX;
+                startY = e.clientY;
+            }
+        });
+
+        svg.addEventListener("mouseup", () => (isPanning = false));
+        svg.addEventListener("mouseleave", () => (isPanning = false));
+
+        svg.addEventListener("wheel", (e) => {
+            e.preventDefault();
+            const scaleFactor = 1 - e.deltaY * 0.002;
+            zoom(scaleFactor, e.clientX, e.clientY);
+        });
+
+        function zoom(scaleFactor, clientX, clientY) {
+            const svgPoint = svg.createSVGPoint();
+            const loc = Object.assign(svgPoint, { x: clientX, y: clientY }).matrixTransform(
+                svg.getScreenCTM().inverse(),
+            );
+            const newWidth = viewBox.width * scaleFactor;
+            const newHeight = viewBox.height * scaleFactor;
+
+            if ((newWidth <= 5500 && newHeight <= 5500) || scaleFactor < 1) {
+                if (newWidth >= 100 && newHeight >= 100) {
+                    viewBox.x = loc.x - (loc.x - viewBox.x) * scaleFactor;
+                    viewBox.y = loc.y - (loc.y - viewBox.y) * scaleFactor;
+                    viewBox.width = newWidth;
+                    viewBox.height = newHeight;
+                    svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+                }
+            }
+        }
+
+        document.getElementById("zoom-in-button").addEventListener("click", () => {
+            zoom(0.8, svg.clientWidth / 2, svg.clientHeight / 2);
+        });
+
+        document.getElementById("zoom-out-button").addEventListener("click", () => {
+            zoom(1.2, svg.clientWidth / 2, svg.clientHeight / 2);
+        });
+
+        function activateView(buttonId, viewClass) {
+            if (!document.getElementById(buttonId)) return;
+            document.getElementById(buttonId).addEventListener("click", () => {
+                const worldMap = document.querySelector("#worldmap");
+                worldMap.classList.forEach((className) => {
+                    if (className.startsWith("current-view-")) {
+                        worldMap.classList.remove(className);
+                    }
+                });
+                worldMap.classList.add(viewClass);
+            });
+        }
+
+        activateView("wwl-activate-button", "current-view-wwl");
+        activateView("pop-activate-button", "current-view-pop");
+
+        function initializeDataTabs() {
+            const tabs = document.querySelectorAll("[data-view-id]");
+            if (tabs.length === 0) return;
+
+            tabs.forEach((tab) => {
+                tab.addEventListener("click", () => {
+                    const viewId = tab.getAttribute("data-view-id");
+                    switchDataView(viewId);
+                });
+            });
+        }
+
+        function switchDataView(viewId) {
+            const tabs = document.querySelectorAll("[data-view-id]");
+            tabs.forEach((tab) => {
+                const isActive = tab.getAttribute("data-view-id") === viewId;
+                if (isActive) {
+                    tab.classList.add("bg-stone-700", "text-white");
+                } else {
+                    tab.classList.remove("bg-stone-700", "text-white");
+                }
+            });
+
+            const svg = document.getElementById("worldmap");
+            if (svg) {
+                svg.setAttribute("data-current-view", viewId);
+            }
+
+            const allViewGroups = document.querySelectorAll("[data-view-group]");
+            allViewGroups.forEach((group) => {
+                const groupViewId = group.getAttribute("data-view-group");
+                if (groupViewId === viewId) {
+                    group.style.display = "block";
+                } else {
+                    group.style.display = "none";
+                }
+            });
+        }
+
+        initializeDataTabs();
+
+        document.addEventListener("countrySelected", (e) => {
+            selectCountry(e.detail.isoCode);
+        });
+
+        function selectCountry(isoCode, forceModal = false) {
+            if (selectedCountry) {
+                selectedCountry.classList.remove("selected");
+                selectedCountry.style.fill = "";
+                selectedCountry.style.stroke = "";
+                selectedCountry.style.strokeWidth = "";
+            }
+
+            const countryElement = svg.querySelector(`[data-iso="${isoCode}"] path`);
+            if (countryElement) {
+                selectedCountry = countryElement;
+                countryElement.classList.add("selected");
+                countryElement.style.fill = "#3b82f6";
+                countryElement.style.stroke = "#1e40af";
+                countryElement.style.strokeWidth = "2";
+
+                const bbox = countryElement.getBBox();
+                const centerX = bbox.x + bbox.width / 2;
+                const centerY = bbox.y + bbox.height / 2;
+
+                viewBox.x = centerX - viewBox.width / 2;
+                viewBox.y = centerY - viewBox.height / 2;
+                svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+
+                if (forceModal || mode === "modal") {
+                    openCountryModal(isoCode);
+                } else if (mode === "link") {
+                    const href = countryElement.getAttribute("href");
+                    if (href) {
+                        window.location.href = href;
+                    }
+                }
+            }
+        }
+
+        svg.addEventListener("click", (e) => {
+            if (isPanning) return;
+
+            const countryElement = e.target.closest(".country-path");
+            if (countryElement) {
+                e.preventDefault();
+                const isoCode = countryElement.getAttribute("data-iso");
+                if (mode === "modal") {
+                    openCountryModal(isoCode);
+                }
+            }
+        });
+
+        setInitialViewBox();
+    }
+</script>
