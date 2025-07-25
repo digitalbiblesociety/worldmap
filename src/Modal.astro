@@ -162,17 +162,7 @@ const { id, classes = {} } = Astro.props;
     }
 
     function hideEmptyGridItems(element) {
-        
-        const selectors = [
-            
-            
-            
-            
-            
-            
-        ];
-
-        const gridItems = element.querySelectorAll(selectors.join(", "));
+        const gridItems = element.querySelectorAll('[class*="data-wrapper-"]');
 
         gridItems.forEach((gridItem) => {
             const dataElements = gridItem.querySelectorAll("[data-fill]");
