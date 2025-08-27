@@ -1,0 +1,262 @@
+---
+import { gatherStats, scaleValueToBucket } from "./countryDataHelpers.js";
+
+interface Props {
+    dataViews?: any[];
+    defaultView?: string;
+    countryDetails?: Record<string, any>;
+    normalizedFields?: string[];
+    legendLabels?: {
+        [value: number]: {
+            label?: string;
+            description?: string;
+        }
+    };
+    classes?: {
+        container?: string;
+        title?: string;
+        items?: string;
+        colorBox?: string;
+        label?: string;
+    };
+}
+
+const defaultClasses = {
+    container: "bg-white dark:bg-stone-950 rounded-lg shadow-lg p-4 z-30",
+    title: "text-sm text-center font-semibold text-stone-900 dark:text-white mb-2",
+    items: "grid grid-cols-4 gap-1",
+    colorBox: "w-6 h-6 rounded border border-stone-300 dark:border-stone-600",
+    label: "text-xs text-stone-700 dark:text-stone-300"
+};
+
+const { dataViews = [], defaultView, countryDetails = {}, normalizedFields = [], legendLabels = {}, classes = {} } = Astro.props;
+const mergedClasses = { ...defaultClasses, ...classes };
+
+
+// Calculate legend data using the same logic as createNormalizedObject
+function calculateLegendData(fieldName) {
+    if (!countryDetails || Object.keys(countryDetails).length === 0) {
+        return [];
+    }
+
+    // Create dataArr same as createNormalizedObject
+    const dataArr = Object.entries(countryDetails).map(([isoCode, details]) => ({
+        isoCode,
+        ...details,
+    }));
+
+    // Get stats using the same function
+    const stats = gatherStats(dataArr, [fieldName]);
+    
+    if (!stats[fieldName]) {
+        return [];
+    }
+
+    const { min, max } = stats[fieldName];
+    
+    // Generate legend items for each normalized value (3-6)
+    const legendItems = [];
+    for (let normalizedValue = 3; normalizedValue <= 6; normalizedValue++) {
+        // Find the raw value range that maps to this normalized value
+        // Using reverse calculation of scaleValueToBucket
+        const ratio1 = (normalizedValue - 3) / (6 - 3); // Convert to 0-1 range
+        const ratio2 = (normalizedValue + 1 - 3) / (6 - 3);
+        
+        const rangeMin = min + ratio1 * (max - min);
+        const rangeMax = normalizedValue === 6 ? max : min + ratio2 * (max - min);
+        
+        legendItems.push({
+            value: normalizedValue,
+            rangeMin: Math.round(rangeMin),
+            rangeMax: Math.round(rangeMax)
+        });
+    }
+    
+    return legendItems;
+}
+---
+
+<div id="map-legend" class={mergedClasses.container} style="display: none;" data-current-view="">
+    <h3 id="legend-title" class={mergedClasses.title}>Legend</h3>
+    <div id="legend-items" class={mergedClasses.items}></div>
+</div>
+
+<script define:vars={{ dataViews, defaultView, countryDetails, legendLabels }}>
+    // Import helper functions (need to be available in browser)
+    function gatherStats(dataArr, fields) {
+        const stats = {};
+        if(fields.length) {
+            fields.forEach((field) => {
+                let minVal = Infinity;
+                let maxVal = -Infinity;
+                dataArr.forEach((item) => {
+                    const val = Number(item[field]);
+                    if (val < minVal) minVal = val;
+                    if (val > maxVal) maxVal = val;
+                });
+                stats[field] = { min: minVal, max: maxVal };
+            });
+        }
+        return stats;
+    }
+
+    function updateLegend() {
+        const legend = document.getElementById('map-legend');
+        const legendTitle = document.getElementById('legend-title');
+        const legendItems = document.getElementById('legend-items');
+        
+        if (!legend || !legendTitle || !legendItems) return;
+        
+        // Get current view
+        const svg = document.getElementById('worldmap');
+        const currentViewId = svg?.getAttribute('data-current-view');
+        
+        if (!currentViewId || dataViews.length === 0) {
+            legend.style.display = 'none';
+            return;
+        }
+        
+        const currentView = dataViews.find(v => v.id === currentViewId);
+        if (!currentView) {
+            legend.style.display = 'none';
+            return;
+        }
+        
+        // Update title and data attribute
+        legendTitle.textContent = currentView.label || 'Legend';
+        legend.setAttribute('data-current-view', currentViewId);
+        
+        // Clear existing items
+        legendItems.innerHTML = '';
+        
+        // Get the primary field for the current view
+        const primaryField = currentView.fields?.primary;
+        if (!primaryField) {
+            legend.style.display = 'none';
+            return;
+        }
+        
+        // Calculate legend data using same logic as createNormalizedObject
+        const dataArr = Object.entries(countryDetails).map(([isoCode, details]) => ({
+            isoCode,
+            ...details,
+        }));
+
+        const stats = gatherStats(dataArr, [primaryField]);
+        
+        if (!stats[primaryField]) {
+            legend.style.display = 'none';
+            return;
+        }
+
+        const { min, max } = stats[primaryField];
+        
+        // First, calculate which normalized values actually exist in the data
+        const normalizedValues = new Set();
+        dataArr.forEach((item) => {
+            const rawValue = Number(item[primaryField]);
+            if (!isNaN(rawValue)) {
+                // Use the same scaleValueToBucket logic (assuming scale 3-6)
+                let normalizedValue;
+                if (min === max) {
+                    normalizedValue = Math.round((3 + 6) / 2); // midpoint
+                } else if (rawValue <= min) {
+                    normalizedValue = 3;
+                } else if (rawValue >= max) {
+                    normalizedValue = 6;
+                } else {
+                    const ratio = (rawValue - min) / (max - min);
+                    const scaled = 3 + ratio * (6 - 3);
+                    normalizedValue = Math.round(scaled);
+                }
+                normalizedValues.add(normalizedValue);
+            }
+        });
+        
+        // Sort the normalized values
+        const sortedValues = Array.from(normalizedValues).sort((a, b) => a - b);
+        
+        // Generate legend items only for values that exist
+        sortedValues.forEach((normalizedValue) => {
+            // Find the raw value range that maps to this normalized value
+            // Using reverse calculation of scaleValueToBucket logic
+            const ratio1 = (normalizedValue - 0.5 - 3) / (6 - 3);
+            const ratio2 = (normalizedValue + 0.5 - 3) / (6 - 3);
+            
+            let rangeMin, rangeMax;
+            if (min === max) {
+                rangeMin = min;
+                rangeMax = max;
+            } else {
+                rangeMin = normalizedValue === 3 ? min : min + ratio1 * (max - min);
+                rangeMax = normalizedValue === 6 ? max : min + ratio2 * (max - min);
+            }
+            
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'flex justify-center items-center gap-2';
+            
+            const colorBox = document.createElement('div');
+            colorBox.className = 'w-6 h-6 rounded border border-stone-300 dark:border-stone-600';
+            colorBox.setAttribute('data-value', normalizedValue);
+            
+            
+            // Create label container
+            const labelContainer = document.createElement('div');
+            labelContainer.className = 'flex flex-col';
+            
+            // Check if custom label/description exists
+            const customLabels = legendLabels[normalizedValue];
+            
+            if (customLabels && customLabels.label) {
+                // Use custom label
+                const label = document.createElement('span');
+                label.className = 'text-xs font-medium text-stone-700 dark:text-stone-300';
+                label.textContent = customLabels.label;
+                labelContainer.appendChild(label);
+                
+                // Add description if provided
+                if (customLabels.description) {
+                    const description = document.createElement('span');
+                    description.className = 'text-xs text-stone-500 dark:text-stone-400';
+                    description.textContent = customLabels.description;
+                    labelContainer.appendChild(description);
+                }
+            } else {
+                // Use default range display
+                const label = document.createElement('span');
+                label.className = 'text-xs text-stone-700 dark:text-stone-300';
+                
+                // Format the range display
+                if (min === max) {
+                    label.textContent = `${Math.round(min)}`;
+                } else {
+                    label.textContent = `${Math.round(rangeMin)} - ${Math.round(rangeMax)}`;
+                }
+                labelContainer.appendChild(label);
+            }
+            
+            itemDiv.appendChild(colorBox);
+            itemDiv.appendChild(labelContainer);
+            legendItems.appendChild(itemDiv);
+        });
+        
+        legend.style.display = 'block';
+    }
+    
+    // Update legend on load and when view changes
+    document.addEventListener('DOMContentLoaded', () => {
+        updateLegend();
+        
+        // Listen for tab changes
+        const tabs = document.querySelectorAll('[data-view-id]');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                setTimeout(updateLegend, 100); // Small delay to ensure view is updated
+            });
+        });
+    });
+    
+    document.addEventListener('astro:after-swap', () => {
+        updateLegend();
+    });
+</script>

@@ -5,6 +5,7 @@ import { createNormalizedObject } from "./countryDataHelpers.js";
 import CirclePoints from "./CountryRankCircles/CirclePoints.astro";
 import SearchButton from "./SearchButton.astro";
 import Modal from "./Modal.astro";
+import Legend from "./Legend.astro";
 
 interface DataView {
     id: string;
@@ -88,7 +89,7 @@ const mergedCountryNames = { ...defaultCountryNames, ...countryNames };
 
 const normalizedDetails = createNormalizedObject(countryDetails, normalizedFields);
 ---
-
+<div>
 {
     dataViews.length > 0 && (
         <div id="data-tabs" class={mergedClasses.tabs}>
@@ -124,9 +125,20 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
     {
         Object.entries(countryPaths).map(([isoCode, path]) => {
             const normalizedDetail = normalizedDetails[isoCode] || {};
+            const countryDetail = countryDetails[isoCode] || {};
             const dataAttrString = Object.entries(normalizedDetail)
                 .map(([key, value]) => `data-${key}="${String(value)}"`)
                 .join(" ");
+
+            // Generate choropleth classes based on normalized values
+            let choroplethClasses = "";
+            dataViews.forEach(view => {
+                const primaryField = view.fields?.primary;
+                if (primaryField && normalizedDetail[primaryField]) {
+                    const value = normalizedDetail[primaryField];
+                    choroplethClasses += ` choropleth-${view.id}-${value}`;
+                }
+            });
 
             return (
                 <Fragment
@@ -136,7 +148,7 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
             data-iso="${isoCode}"
             title="${mergedCountryNames[isoCode]}"
             ${dataAttrString}
-            class="country-path"
+            class="country-path${choroplethClasses}"
             style="cursor: pointer;"
           >
             ${path}
@@ -166,6 +178,80 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
     </slot>
 </Modal>
 
+<Legend 
+    dataViews={dataViews}
+    defaultView={defaultView}
+    countryDetails={countryDetails}
+    normalizedFields={normalizedFields}
+    legendLabels={Astro.props.legendLabels}
+/>
+
+<!-- Country Grid List -->
+<div id="country-grid" class="mt-8 px-4">
+    <h3 class="text-lg font-semibold mb-4 text-stone-800 dark:text-stone-200">Countries by Current View</h3>
+    <div id="country-grid-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+        <!-- Countries will be dynamically inserted here -->
+    </div>
+</div>
+</div>
+
+<style>
+    /* Base country path styles */
+    .country-path path {
+        fill: #e5e7eb; /* gray-200 */
+        stroke: #9ca3af; /* gray-400 */
+        stroke-width: 0.5;
+        transition: all 0.2s ease;
+    }
+    
+    .country-path:hover path {
+        fill: #d1d5db; /* gray-300 */
+        stroke: #6b7280; /* gray-500 */
+        stroke-width: 1;
+    }
+    
+    /* Choropleth color scales for each view */
+    /* Value 3 - Low (red) */
+    svg[data-current-view="access"] .choropleth-access-3 path,
+    svg[data-current-view="needs"] .choropleth-needs-3 path,
+    svg[data-current-view="combined"] .choropleth-combined-3 path {
+        fill: #f87171; /* red-400 */
+    }
+    
+    /* Value 4 - Medium-Low (amber) */
+    svg[data-current-view="access"] .choropleth-access-4 path,
+    svg[data-current-view="needs"] .choropleth-needs-4 path,
+    svg[data-current-view="combined"] .choropleth-combined-4 path {
+        fill: #fbbf24; /* amber-400 */
+    }
+    
+    /* Value 5 - Medium-High (emerald) */
+    svg[data-current-view="access"] .choropleth-access-5 path,
+    svg[data-current-view="needs"] .choropleth-needs-5 path,
+    svg[data-current-view="combined"] .choropleth-combined-5 path {
+        fill: #34d399; /* emerald-400 */
+    }
+    
+    /* Value 6 - High (blue) */
+    svg[data-current-view="access"] .choropleth-access-6 path,
+    svg[data-current-view="needs"] .choropleth-needs-6 path,
+    svg[data-current-view="combined"] .choropleth-combined-6 path {
+        fill: #3b82f6; /* blue-500 */
+    }
+    
+    /* Selected country override */
+    .country-path path.selected {
+        fill: #3b82f6 !important;
+        stroke: #1e40af !important;
+        stroke-width: 2 !important;
+    }
+    
+    /* Grid item colors - default grey for countries with no data */
+    .country-grid-item {
+        background-color: #e5e7eb; /* gray-200 */
+    }
+</style>
+
 <script define:vars={{ mode, dataViews, defaultView, mergedCountryNames, countryDetails }}>
     document.addEventListener("DOMContentLoaded", initializeSvgInteractions);
     document.addEventListener("astro:after-swap", initializeSvgInteractions);
@@ -188,6 +274,11 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
     function openCountryModal(isoCode) {
         const countryName = mergedCountryNames[isoCode] || "Unknown";
         const countryData = countryDetails[isoCode] || {};
+
+        // Don't open modal if there's no data for this country
+        if (!countryDetails[isoCode] || Object.keys(countryData).length === 0) {
+            return;
+        }
 
         captureSlotTemplate();
 
@@ -328,21 +419,7 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
             zoom(1.2, svg.clientWidth / 2, svg.clientHeight / 2);
         });
 
-        function activateView(buttonId, viewClass) {
-            if (!document.getElementById(buttonId)) return;
-            document.getElementById(buttonId).addEventListener("click", () => {
-                const worldMap = document.querySelector("#worldmap");
-                worldMap.classList.forEach((className) => {
-                    if (className.startsWith("current-view-")) {
-                        worldMap.classList.remove(className);
-                    }
-                });
-                worldMap.classList.add(viewClass);
-            });
-        }
 
-        activateView("wwl-activate-button", "current-view-wwl");
-        activateView("pop-activate-button", "current-view-pop");
 
         function initializeDataTabs() {
             const tabs = document.querySelectorAll("[data-view-id]");
@@ -381,15 +458,134 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
                     group.style.display = "none";
                 }
             });
+
+            // Update country grid
+            updateCountryGrid(viewId);
+        }
+
+        function updateCountryGrid(viewId) {
+            const container = document.getElementById("country-grid-container");
+            if (!container) return;
+
+            // Find the active view configuration
+            const activeView = dataViews.find(view => view.id === viewId);
+            if (!activeView) return;
+
+            // Get the primary field to sort by
+            const primaryField = activeView.fields?.primary;
+            if (!primaryField) {
+                container.innerHTML = '<p class="text-stone-500 dark:text-stone-400 col-span-full">No data available for this view</p>';
+                return;
+            }
+
+            // Create array of countries with their values
+            const countriesWithValues = [];
+            Object.entries(countryDetails).forEach(([isoCode, data]) => {
+                if (data && data[primaryField] !== undefined && data[primaryField] !== null) {
+                    countriesWithValues.push({
+                        iso: isoCode,
+                        name: mergedCountryNames[isoCode] || isoCode,
+                        value: data[primaryField],
+                        data: data
+                    });
+                }
+            });
+
+            // Sort by value (ascending - least to most)
+            countriesWithValues.sort((a, b) => {
+                // Convert to numbers for comparison
+                const aNum = Number(a.value);
+                const bNum = Number(b.value);
+                
+                // If both can be treated as numbers, compare numerically
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return aNum - bNum;
+                }
+                
+                // Otherwise, fall back to string comparison
+                return String(a.value).localeCompare(String(b.value));
+            });
+
+            // Generate HTML for country grid items
+            const html = countriesWithValues.map(country => {
+                const displayValue = typeof country.value === 'number' 
+                    ? country.value.toFixed(1) 
+                    : country.value;
+                
+                // Get the color from the actual SVG element's computed style
+                let bgColor = '';
+                const svg = document.getElementById("worldmap");
+                if (svg) {
+                    const countryPath = svg.querySelector(`[data-iso="${country.iso}"] path`);
+                    if (countryPath) {
+                        // Get the computed fill color from the choropleth-styled path
+                        const computedStyle = window.getComputedStyle(countryPath);
+                        bgColor = computedStyle.fill;
+                        
+                        // Convert RGB to hex if needed
+                        if (bgColor.startsWith('rgb')) {
+                            const rgb = bgColor.match(/\d+/g);
+                            if (rgb) {
+                                bgColor = '#' + rgb.map(x => {
+                                    const hex = parseInt(x).toString(16);
+                                    return hex.length === 1 ? '0' + hex : hex;
+                                }).join('');
+                            }
+                        }
+                    }
+                }
+                
+                // Fallback to gray if no color found
+                if (!bgColor || bgColor === '#e5e7eb') {
+                    bgColor = '#e5e7eb'; // gray-200
+                }
+                
+                return `
+                    <div class="country-grid-item p-3 rounded-lg cursor-pointer transition-all hover:scale-105 hover:shadow-lg"
+                         style="background-color: ${bgColor};"
+                         data-iso="${country.iso}">
+                        <div class="font-semibold text-sm text-stone-800 dark:text-stone-200 truncate" title="${country.name}">
+                            ${country.name}
+                        </div>
+                        <div class="text-lg font-bold text-stone-700 dark:text-stone-300">
+                            ${displayValue}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html || '<p class="text-stone-500 dark:text-stone-400 col-span-full">No data available</p>';
+
+            // Add click handlers to grid items
+            container.querySelectorAll('.country-grid-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const isoCode = item.getAttribute('data-iso');
+                    selectCountry(isoCode, mode === 'modal');
+                });
+            });
         }
 
         initializeDataTabs();
+
+        // Initialize country grid with default view
+        const initialView = defaultView || (dataViews && dataViews.length > 0 ? dataViews[0].id : null);
+        if (initialView) {
+            updateCountryGrid(initialView);
+        }
 
         document.addEventListener("countrySelected", (e) => {
             selectCountry(e.detail.isoCode);
         });
 
         function selectCountry(isoCode, forceModal = false) {
+            const countryData = countryDetails[isoCode];
+            const hasData = countryData && Object.keys(countryData).length > 0;
+            
+            // Don't select if in modal mode and country has no data
+            if ((forceModal || mode === "modal") && !hasData) {
+                return;
+            }
+            
             if (selectedCountry) {
                 selectedCountry.classList.remove("selected");
                 selectedCountry.style.fill = "";
