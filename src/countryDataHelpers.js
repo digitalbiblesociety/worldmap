@@ -1,5 +1,14 @@
 /**
- * scaleValueToBucket converts a raw number into a range for our colors [1..11]
+ * Converts a raw numeric value into a normalized bucket for visualization
+ * @param {number} value - The raw value to scale
+ * @param {number} min - Minimum value in the dataset
+ * @param {number} max - Maximum value in the dataset
+ * @param {number} [scaleMin=1] - Minimum bucket value
+ * @param {number} [scaleMax=11] - Maximum bucket value
+ * @returns {number} Normalized bucket value between scaleMin and scaleMax
+ * @example
+ * // Scale a value of 75 within range 0-100 to a 1-11 scale
+ * scaleValueToBucket(75, 0, 100, 1, 11); // Returns ~8
  */
 export function scaleValueToBucket(value, min, max, scaleMin = 1, scaleMax = 11) {
     // Edge case: if all values are the same, return midpoint of scale
@@ -19,11 +28,16 @@ export function scaleValueToBucket(value, min, max, scaleMin = 1, scaleMax = 11)
   
     return Math.round(scaled);
 }
-  /**
-   * gatherStats calculates min and max for each field you want to normalize.
-   * dataArr: array of country objects
-   * fields: list of field names to track
-   */
+/**
+ * Calculates statistical ranges (min/max) for specified data fields
+ * @param {Array<Object>} dataArr - Array of country data objects
+ * @param {string[]} fields - Array of field names to analyze
+ * @returns {Object} Statistics object with min/max for each field
+ * @example
+ * const data = [{gdp: 1000, population: 5000000}, {gdp: 2000, population: 10000000}];
+ * gatherStats(data, ['gdp', 'population']);
+ * // Returns: { gdp: {min: 1000, max: 2000}, population: {min: 5000000, max: 10000000} }
+ */
 export function gatherStats(dataArr, fields) {
     const stats = {};
   
@@ -42,6 +56,19 @@ export function gatherStats(dataArr, fields) {
     return stats;
 }
   
+/**
+ * Creates a normalized dataset with scaled values for visualization
+ * @param {Object} details - Raw country data indexed by ISO code
+ * @param {string[]} fields - Field names to normalize
+ * @returns {Object} Normalized data with scaled values (3-6 range by default)
+ * @example
+ * const rawData = { 
+ *   'US': { gdp: 20000, population: 330000000 },
+ *   'CA': { gdp: 1800, population: 38000000 }
+ * };
+ * createNormalizedObject(rawData, ['gdp', 'population']);
+ * // Returns normalized data with scaled values for visualization
+ */
 export function createNormalizedObject(details, fields) {
     const dataArr = Object.entries(details).map(([isoCode, details]) => ({
       isoCode,

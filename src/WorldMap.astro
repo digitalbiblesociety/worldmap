@@ -8,34 +8,69 @@ import Modal from "./Modal.astro";
 import Legend from "./Legend.astro";
 
 interface DataView {
+    /** Unique identifier for the data view */
     id: string;
+    /** Human-readable label for the view */
     label: string;
+    /** Field configuration for data mapping */
     fields: {
+        /** Primary data field name for choropleth coloring */
         primary?: string;
+        /** Secondary data field name for additional visualization */
         secondary?: string;
     };
+    /** CSS class configuration for styling */
     classes?: {
+        /** CSS class for primary data visualization */
         primary?: string;
+        /** CSS class for secondary data visualization */
         secondary?: string;
+        /** CSS class for circle elements */
         circle?: string;
     };
 }
 
+interface CountryData {
+    [fieldName: string]: string | number | null | undefined;
+}
+
+interface NormalizedCountryData extends CountryData {
+    /** Original ISO country code */
+    isoCode: string;
+}
+
+interface LegendLabels {
+    [value: number]: {
+        label?: string;
+        description?: string;
+    };
+}
+
 interface Props {
+    /** CSS class overrides for component styling */
     classes?: {
+        /** Map controls container classes */
         mapControls?: string;
+        /** Zoom button classes */
         zoomButton?: string;
+        /** Data view tabs container classes */
         tabs?: string;
+        /** Individual tab classes */
         tab?: string;
+        /** Active tab classes */
         activeTab?: string;
+        /** Main SVG map classes */
         worldMap?: string;
+        /** Tooltip classes */
         tooltip?: string;
+        /** Modal-related classes */
         modal?: {
             overlay?: string;
             modal?: string;
             closeBtn?: string;
             content?: string;
         };
+        /** Search functionality classes */
         search?: {
             searchButton?: string;
             searchContainer?: string;
@@ -44,13 +79,22 @@ interface Props {
             searchResultItem?: string;
         };
     };
+    /** URL path template for country links (e.g., '/country/') */
     linkPath?: string;
+    /** Custom country name overrides mapping ISO codes to display names */
     countryNames?: Record<string, string>;
+    /** Interaction mode - 'link' for navigation, 'modal' for popup details */
     mode?: "link" | "modal";
-    countryDetails?: Record<string, object>;
-    normalizedFields?: any;
+    /** Raw country data indexed by ISO code */
+    countryDetails?: Record<string, CountryData>;
+    /** Field names that should be normalized for visualization */
+    normalizedFields?: string[];
+    /** Configuration for different data visualization views */
     dataViews?: DataView[];
+    /** ID of the default view to display on load */
     defaultView?: string;
+    /** Custom labels for legend values */
+    legendLabels?: LegendLabels;
 }
 
 const defaultClasses = {
@@ -105,9 +149,9 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
     )
 }
 
-<div id="map-controls" class={mergedClasses.mapControls}>
-    <button id="zoom-in-button" title="Zoom In" class={mergedClasses.zoomButton}>+</button>
-    <button id="zoom-out-button" title="Zoom Out" class={mergedClasses.zoomButton}>-</button>
+<div id="map-controls" class={mergedClasses.mapControls} role="toolbar" aria-label="Map controls">
+    <button id="zoom-in-button" title="Zoom In" aria-label="Zoom in on map" class={mergedClasses.zoomButton}>+</button>
+    <button id="zoom-out-button" title="Zoom Out" aria-label="Zoom out on map" class={mergedClasses.zoomButton}>-</button>
     <SearchButton countryNames={mergedCountryNames} classes={classes.search} />
 </div>
 
@@ -115,12 +159,11 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
     id="worldmap"
     class={mergedClasses.worldMap}
     xmlns="http:
-  viewBox="
-    83
-    45
-    2528
-    1200"
+  viewBox="-400 -300 3400 1800"
     data-current-view={defaultView || dataViews[0]?.id}
+    role="img"
+    aria-label="Interactive world map with country data visualization"
+    tabindex="0"
 >
     {
         Object.entries(countryPaths).map(([isoCode, path]) => {
@@ -187,9 +230,12 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
 />
 
 <!-- Country Grid List -->
-<div id="country-grid" class="mt-8 px-4">
-    <h3 class="text-lg font-semibold mb-4 text-stone-800 dark:text-stone-200">Countries by Current View</h3>
-    <div id="country-grid-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+<div id="country-grid" class="mt-8 px-4" role="region" aria-label="Country data grid">
+    <h3 id="country-grid-title" class="text-lg font-semibold mb-4 text-stone-800 dark:text-stone-200">Countries by Current View</h3>
+    <div id="country-grid-container" 
+         class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
+         role="grid"
+         aria-labelledby="country-grid-title">
         <!-- Countries will be dynamically inserted here -->
     </div>
 </div>
@@ -250,13 +296,93 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
     .country-grid-item {
         background-color: #e5e7eb; /* gray-200 */
     }
+    
+    /* Prevent flash by hiding map until viewBox is calculated */
+    #worldmap {
+        visibility: hidden;
+    }
+    
+    #worldmap.ready {
+        visibility: visible;
+    }
 </style>
 
 <script define:vars={{ mode, dataViews, defaultView, mergedCountryNames, countryDetails }}>
+    // Color utility functions
+    window.rgbToHex = function(rgb) {
+        if (!rgb || !rgb.startsWith('rgb')) {
+            return rgb;
+        }
+        
+        const rgbMatch = rgb.match(/\d+/g);
+        if (!rgbMatch || rgbMatch.length < 3) {
+            return '#e5e7eb';
+        }
+        
+        return '#' + rgbMatch.slice(0, 3).map(x => {
+            const hex = parseInt(x).toString(16);
+            return hex.length === 1 ? '0' + hex : hex;
+        }).join('');
+    };
+
+    window.getCountryColor = function(isoCode, svg, useCache = true) {
+        if (!svg || !isoCode) {
+            return '#e5e7eb';
+        }
+        
+        // Check cache first if enabled
+        const currentView = svg.getAttribute('data-current-view');
+        const cacheKey = `${isoCode}-${currentView}`;
+        
+        if (useCache && colorCache.has(cacheKey)) {
+            return colorCache.get(cacheKey);
+        }
+        
+        try {
+            const countryPath = svg.querySelector(`[data-iso="${isoCode}"] path`);
+            if (!countryPath) {
+                const defaultColor = '#e5e7eb';
+                if (useCache) colorCache.set(cacheKey, defaultColor);
+                return defaultColor;
+            }
+            
+            const computedStyle = window.getComputedStyle(countryPath);
+            const fillColor = computedStyle.fill;
+            
+            const hexColor = window.rgbToHex(fillColor);
+            const finalColor = hexColor && hexColor !== '#e5e7eb' ? hexColor : '#e5e7eb';
+            
+            // Cache the result with size management
+            if (useCache) {
+                // Clear oldest entries if cache is getting too large
+                if (colorCache.size >= MAX_CACHE_SIZE) {
+                    const firstKey = colorCache.keys().next().value;
+                    colorCache.delete(firstKey);
+                }
+                colorCache.set(cacheKey, finalColor);
+            }
+            
+            return finalColor;
+            
+        } catch (error) {
+            console.warn(`Failed to get color for country ${isoCode}:`, error);
+            const defaultColor = '#e5e7eb';
+            if (useCache) colorCache.set(cacheKey, defaultColor);
+            return defaultColor;
+        }
+    };
+
     document.addEventListener("DOMContentLoaded", initializeSvgInteractions);
     document.addEventListener("astro:after-swap", initializeSvgInteractions);
 
     let originalSlotTemplate = null;
+    
+    // Performance optimization variables
+    let gridUpdateTimeout = null;
+    let colorCache = new Map();
+    let lastGridHTML = '';
+    let isGridUpdating = false;
+    const MAX_CACHE_SIZE = 500; // Limit cache size to prevent memory leaks
 
     function captureSlotTemplate() {
         if (!originalSlotTemplate) {
@@ -310,9 +436,16 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
 
     function initializeSvgInteractions() {
         const svg = document.getElementById("worldmap");
-        if (!svg) return;
+        if (!svg) {
+            console.error("WorldMap SVG element not found - component may not function properly");
+            return;
+        }
 
-        captureSlotTemplate();
+        try {
+            captureSlotTemplate();
+        } catch (error) {
+            console.warn("Failed to capture slot template:", error);
+        }
 
         const tooltip = document.getElementById("tooltip");
         let isPanning = false;
@@ -343,6 +476,7 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
                 height: viewBoxHeight,
             };
             svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+            svg.classList.add("ready");
         }
 
         function showTooltip(event) {
@@ -393,21 +527,32 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
         });
 
         function zoom(scaleFactor, clientX, clientY) {
-            const svgPoint = svg.createSVGPoint();
-            const loc = Object.assign(svgPoint, { x: clientX, y: clientY }).matrixTransform(
-                svg.getScreenCTM().inverse(),
-            );
-            const newWidth = viewBox.width * scaleFactor;
-            const newHeight = viewBox.height * scaleFactor;
-
-            if ((newWidth <= 5500 && newHeight <= 5500) || scaleFactor < 1) {
-                if (newWidth >= 100 && newHeight >= 100) {
-                    viewBox.x = loc.x - (loc.x - viewBox.x) * scaleFactor;
-                    viewBox.y = loc.y - (loc.y - viewBox.y) * scaleFactor;
-                    viewBox.width = newWidth;
-                    viewBox.height = newHeight;
-                    svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+            try {
+                const svgPoint = svg.createSVGPoint();
+                const screenCTM = svg.getScreenCTM();
+                
+                if (!screenCTM) {
+                    console.warn("Cannot get screen coordinate transformation matrix for zoom");
+                    return;
                 }
+                
+                const loc = Object.assign(svgPoint, { x: clientX, y: clientY }).matrixTransform(
+                    screenCTM.inverse(),
+                );
+                const newWidth = viewBox.width * scaleFactor;
+                const newHeight = viewBox.height * scaleFactor;
+
+                if ((newWidth <= 5500 && newHeight <= 5500) || scaleFactor < 1) {
+                    if (newWidth >= 100 && newHeight >= 100) {
+                        viewBox.x = loc.x - (loc.x - viewBox.x) * scaleFactor;
+                        viewBox.y = loc.y - (loc.y - viewBox.y) * scaleFactor;
+                        viewBox.width = newWidth;
+                        viewBox.height = newHeight;
+                        svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+                    }
+                }
+            } catch (error) {
+                console.warn("Zoom operation failed:", error);
             }
         }
 
@@ -447,6 +592,8 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
             const svg = document.getElementById("worldmap");
             if (svg) {
                 svg.setAttribute("data-current-view", viewId);
+                // Clear color cache when view changes to ensure fresh colors
+                colorCache.clear();
             }
 
             const allViewGroups = document.querySelectorAll("[data-view-group]");
@@ -459,22 +606,50 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
                 }
             });
 
-            // Update country grid
-            updateCountryGrid(viewId);
+            // Update country grid with debouncing
+            debouncedUpdateCountryGrid(viewId);
+        }
+
+        // Debounced version of updateCountryGrid for performance
+        function debouncedUpdateCountryGrid(viewId) {
+            if (gridUpdateTimeout) {
+                clearTimeout(gridUpdateTimeout);
+            }
+            
+            gridUpdateTimeout = setTimeout(() => {
+                updateCountryGrid(viewId);
+            }, 150); // 150ms debounce delay
         }
 
         function updateCountryGrid(viewId) {
+            // Prevent concurrent updates
+            if (isGridUpdating) {
+                return;
+            }
+            isGridUpdating = true;
+            
             const container = document.getElementById("country-grid-container");
-            if (!container) return;
+            if (!container) {
+                console.warn("Country grid container not found");
+                isGridUpdating = false;
+                return;
+            }
 
             // Find the active view configuration
             const activeView = dataViews.find(view => view.id === viewId);
-            if (!activeView) return;
+            if (!activeView) {
+                console.warn(`Active view '${viewId}' not found in dataViews`);
+                container.innerHTML = '<p class="text-stone-500 dark:text-stone-400 col-span-full">View configuration not found</p>';
+                isGridUpdating = false;
+                return;
+            }
 
             // Get the primary field to sort by
             const primaryField = activeView.fields?.primary;
             if (!primaryField) {
+                console.info(`No primary field defined for view '${viewId}'`);
                 container.innerHTML = '<p class="text-stone-500 dark:text-stone-400 col-span-full">No data available for this view</p>';
+                isGridUpdating = false;
                 return;
             }
 
@@ -506,44 +681,50 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
                 return String(a.value).localeCompare(String(b.value));
             });
 
-            // Generate HTML for country grid items
-            const html = countriesWithValues.map(country => {
+            // Use requestAnimationFrame for better performance with large datasets
+            requestAnimationFrame(() => {
+                generateGridHTML(countriesWithValues, container);
+                isGridUpdating = false;
+            });
+        }
+        
+        function generateGridHTML(countriesWithValues, container) {
+            // Batch process countries for better performance
+            const BATCH_SIZE = 50;
+            const totalCountries = countriesWithValues.length;
+            
+            if (totalCountries <= BATCH_SIZE) {
+                // Small dataset - process immediately
+                const html = renderCountries(countriesWithValues);
+                container.innerHTML = html || '<p class="text-stone-500 dark:text-stone-400 col-span-full">No data available</p>';
+                addGridEventListeners(container);
+            } else {
+                // Large dataset - use progressive rendering
+                container.innerHTML = '<p class="text-stone-500 dark:text-stone-400 col-span-full">Loading countries...</p>';
+                renderCountriesBatched(countriesWithValues, container, 0);
+            }
+        }
+        
+        function renderCountries(countries) {
+            return countries.map(country => {
                 const displayValue = typeof country.value === 'number' 
                     ? country.value.toFixed(1) 
                     : country.value;
                 
                 // Get the color from the actual SVG element's computed style
-                let bgColor = '';
                 const svg = document.getElementById("worldmap");
-                if (svg) {
-                    const countryPath = svg.querySelector(`[data-iso="${country.iso}"] path`);
-                    if (countryPath) {
-                        // Get the computed fill color from the choropleth-styled path
-                        const computedStyle = window.getComputedStyle(countryPath);
-                        bgColor = computedStyle.fill;
-                        
-                        // Convert RGB to hex if needed
-                        if (bgColor.startsWith('rgb')) {
-                            const rgb = bgColor.match(/\d+/g);
-                            if (rgb) {
-                                bgColor = '#' + rgb.map(x => {
-                                    const hex = parseInt(x).toString(16);
-                                    return hex.length === 1 ? '0' + hex : hex;
-                                }).join('');
-                            }
-                        }
-                    }
-                }
-                
-                // Fallback to gray if no color found
-                if (!bgColor || bgColor === '#e5e7eb') {
-                    bgColor = '#e5e7eb'; // gray-200
-                }
+                const bgColor = window.getCountryColor ? 
+                    window.getCountryColor(country.iso, svg) : 
+                    '#e5e7eb'; // Fallback if utility not loaded
                 
                 return `
                     <div class="country-grid-item p-3 rounded-lg cursor-pointer transition-all hover:scale-105 hover:shadow-lg"
                          style="background-color: ${bgColor};"
-                         data-iso="${country.iso}">
+                         data-iso="${country.iso}"
+                         role="gridcell"
+                         tabindex="0"
+                         aria-label="${country.name}: ${displayValue}"
+                         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
                         <div class="font-semibold text-sm text-stone-800 dark:text-stone-200 truncate" title="${country.name}">
                             ${country.name}
                         </div>
@@ -553,9 +734,33 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
                     </div>
                 `;
             }).join('');
-
-            container.innerHTML = html || '<p class="text-stone-500 dark:text-stone-400 col-span-full">No data available</p>';
-
+        }
+        
+        function renderCountriesBatched(countries, container, startIndex) {
+            const BATCH_SIZE = 50;
+            const endIndex = Math.min(startIndex + BATCH_SIZE, countries.length);
+            const batch = countries.slice(startIndex, endIndex);
+            
+            if (startIndex === 0) {
+                // First batch - replace content
+                container.innerHTML = renderCountries(batch);
+            } else {
+                // Subsequent batches - append content
+                container.insertAdjacentHTML('beforeend', renderCountries(batch));
+            }
+            
+            // Continue with next batch if there are more countries
+            if (endIndex < countries.length) {
+                requestAnimationFrame(() => {
+                    renderCountriesBatched(countries, container, endIndex);
+                });
+            } else {
+                // All countries rendered - add event listeners
+                addGridEventListeners(container);
+            }
+        }
+        
+        function addGridEventListeners(container) {
             // Add click handlers to grid items
             container.querySelectorAll('.country-grid-item').forEach(item => {
                 item.addEventListener('click', () => {
