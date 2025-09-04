@@ -155,9 +155,9 @@ const { id, classes = {} } = Astro.props;
 
             if (formatter && value !== "") {
                 if (formatter === "number") {
-                    value = parseInt(value.replace(/,/g, "")).toLocaleString();
+                    value = parseInt(String(value).replace(/,/g, "")).toLocaleString();
                 } else if (formatter === "millions") {
-                    value = (parseInt(value.replace(/,/g, "")) / 1000000).toFixed(1);
+                    value = (parseInt(String(value).replace(/,/g, "")) / 1000000).toFixed(1);
                 } else if (formatter === "link") {
                     el.href = el.href + value
                 }
