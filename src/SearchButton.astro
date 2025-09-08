@@ -12,7 +12,7 @@ interface Props {
 }
 
 const defaultClasses = {
-  searchButton: "text-white text-lg bg-stone-900 dark:bg-stone-950 rounded-lg w-8 h-8 mt-2 flex items-center justify-center relative cursor-pointer hover:bg-stone-800 transition-colors",
+  searchButton: "text-white text-lg bg-stone-900 dark:bg-stone-950 rounded-lg size-10 mt-2 flex items-center justify-center relative cursor-pointer hover:bg-stone-800",
   searchContainer: "absolute left-full bg-stone-900 dark:bg-stone-950 rounded-r-lg -ml-2 px-2 min-w-[250px] opacity-0 scale-x-0 origin-left transition-all duration-300 ease-out pointer-events-none",
   searchInput: "w-full px-2 py-1 rounded bg-stone-800 text-white placeholder-stone-400 text-sm",
   searchResults: "absolute top-full left-0 right-0 mt-1 bg-stone-900 dark:bg-stone-950 rounded-lg overflow-hidden transition-all duration-300 ease-out",
@@ -24,9 +24,11 @@ const mergedClasses = { ...defaultClasses, ...classes };
 ---
 
 <div id="search-button" title="Search Countries" class={mergedClasses.searchButton}>
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <circle cx="11" cy="11" r="8"></circle>
-    <path d="m21 21-4.35-4.35"></path>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 69" class="size-6">
+    <g fill="none" fill-rule="evenodd" stroke="#fff" stroke-width="5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M61 66 46.4 51.6"/>
+      <circle cx="27" cy="27" r="24.5"/>
+    </g>
   </svg>
   <div id="search-container" class={mergedClasses.searchContainer}>
     <div class="relative">

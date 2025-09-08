@@ -176,8 +176,11 @@ function calculateLegendData(fieldName) {
         // Sort the normalized values
         const sortedValues = Array.from(normalizedValues).sort((a, b) => a - b);
         
+        // Get titles from the current view if available
+        const titles = currentView.fields?.titles || [];
+        
         // Generate legend items only for values that exist
-        sortedValues.forEach((normalizedValue) => {
+        sortedValues.forEach((normalizedValue, index) => {
             // Find the raw value range that maps to this normalized value
             // Using reverse calculation of scaleValueToBucket logic
             const ratio1 = (normalizedValue - 0.5 - 3) / (6 - 3);
@@ -221,6 +224,22 @@ function calculateLegendData(fieldName) {
                     description.textContent = customLabels.description;
                     labelContainer.appendChild(description);
                 }
+            } else if (titles && titles[index]) {
+                // Use title from view configuration
+                const titleLabel = document.createElement('span');
+                titleLabel.className = 'text-xs font-medium text-stone-700 dark:text-stone-300';
+                titleLabel.textContent = titles[index];
+                labelContainer.appendChild(titleLabel);
+                
+                // Add range as secondary text
+                const rangeLabel = document.createElement('span');
+                rangeLabel.className = 'text-[10px] text-stone-500 dark:text-stone-400';
+                if (min === max) {
+                    rangeLabel.textContent = `${Math.round(min)}`;
+                } else {
+                    rangeLabel.textContent = `${Math.round(rangeMin)} - ${Math.round(rangeMax)}`;
+                }
+                labelContainer.appendChild(rangeLabel);
             } else {
                 // Use default range display
                 const label = document.createElement('span');
