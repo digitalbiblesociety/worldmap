@@ -104,7 +104,7 @@ const defaultClasses = {
     tabs: "z-30 absolute top-4 right-4 text-white flex bg-stone-900 dark:bg-stone-950 rounded-lg p-1",
     tab: "px-3 py-2 text-sm text-white cursor-pointer rounded hover:bg-stone-700",
     activeTab: "bg-stone-700",
-    worldMap: "w-full h-[75vh] z-0 relative dark:bg-stone-900",
+    worldMap: "w-full h-[75vh] z-0 relative bg-stone-50 dark:bg-stone-900",
     tooltip: "absolute hidden bg-stone-800 text-white px-2 rounded-md pointer-events-none",
     modal: {
         overlay: "fixed inset-0 bg-black bg-opacity-50 z-50 transition-opacity duration-300",
@@ -166,8 +166,8 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
 <svg
     id="worldmap"
     class={mergedClasses.worldMap}
-    xmlns="http:
-  viewBox="-400 -300 3400 1800"
+    viewBox="-400 -300 3400 1800"
+
     data-current-view={defaultView || dataViews[0]?.id}
     role="img"
     aria-label="Interactive world map with country data visualization"
@@ -783,13 +783,42 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
         }
         
         function addGridEventListeners(container) {
-            // Add click handlers to grid items
+            // Add click and hover handlers to grid items
             container.querySelectorAll('.country-grid-item').forEach(item => {
                 item.addEventListener('click', () => {
                     const isoCode = item.getAttribute('data-iso');
                     selectCountry(isoCode, mode === 'modal');
                 });
+                
+                // Add hover handlers for highlighting
+                item.addEventListener('mouseenter', () => {
+                    const isoCode = item.getAttribute('data-iso');
+                    highlightCountry(isoCode, true);
+                });
+                
+                item.addEventListener('mouseleave', () => {
+                    const isoCode = item.getAttribute('data-iso');
+                    highlightCountry(isoCode, false);
+                });
             });
+        }
+        
+        function highlightCountry(isoCode, highlight) {
+            const countryElement = svg.querySelector(`[data-iso="${isoCode}"] path`);
+            if (countryElement && !countryElement.classList.contains('selected')) {
+                if (highlight) {
+                    countryElement.classList.add('hover-highlight');
+                    countryElement.style.fill = '#fbbf24'; // amber-400 for highlight
+                    countryElement.style.stroke = '#f59e0b'; // amber-500 for stroke
+                    countryElement.style.strokeWidth = '2';
+                } else {
+                    countryElement.classList.remove('hover-highlight');
+                    // Reset to original styles
+                    countryElement.style.fill = '';
+                    countryElement.style.stroke = '';
+                    countryElement.style.strokeWidth = '';
+                }
+            }
         }
 
         initializeDataTabs();

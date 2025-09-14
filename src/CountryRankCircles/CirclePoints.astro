@@ -14,9 +14,9 @@ const currentView = dataViews.find(view => view.id === activeView) || dataViews[
 
             const primaryField = currentView.fields.primary;
             const secondaryField = currentView.fields.secondary;
-            
-            const hasPrimary = primaryField && data[primaryField];
-            const hasSecondary = secondaryField && data[secondaryField];
+
+            const hasPrimary = primaryField && data[primaryField] !== null && data[primaryField] !== undefined;
+            const hasSecondary = secondaryField && data[secondaryField] !== null && data[secondaryField] !== undefined;
 
             if (!hasPrimary && !hasSecondary) return null;
             

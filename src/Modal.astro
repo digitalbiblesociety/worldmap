@@ -163,6 +163,10 @@ const { id, classes = {} } = Astro.props;
                 }
             }
             if(formatter != "link") {
+                // Add space before percentage values for church_growth
+                if (fillValue === "countryData.church_growth" && value && !value.toString().startsWith(" ")) {
+                    value = " " + value;
+                }
                 el.textContent = value;
                 el.style.display = "";
             }

@@ -40,13 +40,21 @@ export function scaleValueToBucket(value, min, max, scaleMin = 1, scaleMax = 11)
  */
 export function gatherStats(dataArr, fields) {
     const stats = {};
-  
+
     if(fields.length) {
     fields.forEach((field) => {
       let minVal = Infinity;
       let maxVal = -Infinity;
       dataArr.forEach((item) => {
+        // Skip null/undefined values when gathering stats
+        if (item[field] === null || item[field] === undefined || item[field] === '') {
+          return;
+        }
         const val = Number(item[field]);
+        // Skip NaN values
+        if (isNaN(val)) {
+          return;
+        }
         if (val < minVal) minVal = val;
         if (val > maxVal) maxVal = val;
       });
@@ -82,10 +90,20 @@ export function createNormalizedObject(details, fields) {
       normalized[item.isoCode] = {
         ...item,
       };
-  
+
       if(fields.length) {
       fields.forEach((field) => {
+        // Preserve null/undefined values instead of normalizing them
+        if (item[field] === null || item[field] === undefined || item[field] === '') {
+          normalized[item.isoCode][field] = null;
+          return;
+        }
         const rawValue = Number(item[field]);
+        // Skip NaN values
+        if (isNaN(rawValue)) {
+          normalized[item.isoCode][field] = null;
+          return;
+        }
         normalized[item.isoCode][field] = scaleValueToBucket(
           rawValue,
           stats[field].min,
