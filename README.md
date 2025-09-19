@@ -47,9 +47,7 @@ const countryData = {
   'BR': {
     country: 'Brazil',
     access_rank: 88,
-    access_points_total: 6.13,
     access_desc: 'Minimal Access Restrictions',
-    needs_count: 11879637,
     needs_range_desc: 'more than ten million',
     pop_total: 217637000,
     pop_christian: 196608000,
@@ -79,7 +77,6 @@ The slot content supports data attributes for dynamic content with automatic hid
 
 **With Formatting:**
 - `data-fill="countryData.population" data-format="number"` - Format numbers with commas
-- `data-fill="countryData.needs_count" data-format="millions"` - Convert to millions
 
 **Auto-Hide Behavior:**
 - Elements with `data-fill` are automatically hidden if the data doesn't exist

@@ -155,7 +155,7 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
     <button id="zoom-out-button" title="Zoom Out" aria-label="Zoom out on map" class={mergedClasses.zoomButton}>-</button>
     <SearchButton countryNames={mergedCountryNames} classes={classes.search} />
     <button id="scroll-zoom-toggle" title="Toggle Scroll Zoom" aria-label="Toggle scroll zoom" class={mergedClasses.zoomButton}>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 125">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 125" fill="currentColor">
             <path d="M42.5 21.7c0-.8-.6-1.5-1.5-1.5-.8 0-1.5.6-1.5 1.4v3c0 .9.6 1.5 1.4 1.6.9 0 1.6-.7 1.6-1.5v-3ZM41 29.2c-.9 0-1.6.6-1.6 1.4v3c0 .9.6 1.5 1.4 1.5.9 0 1.5-.6 1.6-1.4v-3c0-.9-.7-1.6-1.5-1.6Zm-1.4-13.6c0 .8.7 1.5 1.5 1.5s1.5-.6 1.5-1.4V13h3.1l-4.3-7.8-4.6 7.6 2.9.1v2.7Zm1.2 49.6c-.8 0-1.5.6-1.4 1.5v3c0 .8.6 1.5 1.5 1.5.8 0 1.5-.7 1.5-1.6v-3c0-.8-.7-1.4-1.6-1.4Zm.1 9c-.8 0-1.5.6-1.5 1.5v3c0 .8.7 1.5 1.5 1.5.9 0 1.5-.7 1.5-1.6v-3c0-.8-.7-1.4-1.5-1.4Zm1.6 10.4c0-.8-.7-1.4-1.5-1.4-.9 0-1.5.7-1.5 1.5v1.7h-2.9l4.7 7.7 4.3-7.8h-3l-.1-1.6Z"/>
             <path d="M80.3 45.9c-2.4-2.6-4.7-3.2-7.6-1.9a5.3 5.3 0 0 0-2.6 2.4 6 6 0 0 0-6.3 1 5.9 5.9 0 0 0-2.6 3.5 5 5 0 0 0-4.7 1.5 6 6 0 0 0-1.8 2.4l-2.4-2.3a154 154 0 0 0-3.6-3.2v-.1a8 8 0 0 0-6.4-8v-1.5c0-.9-.6-1.5-1.5-1.6-.8 0-1.5.7-1.5 1.5v1.7c-3.6.7-6.3 4-6.3 8s2.8 7.1 6.4 7.9v3.5c0 .8.6 1.5 1.4 1.5.8 0 1.4-.6 1.5-1.3l.4.5.1.1 4 5c.2 2.2 0 4-.3 5.9-.6 4-1 7.7 3.7 11.2 9.4 7 16 10.7 22.1 10.7 4.8 0 9.2-2.3 14.4-7.2 17.1-16 4.7-29.4-6.3-41.3Zm4.4 39c-9.3 8.8-15 9.4-32.7-3.7-3.4-2.5-3-4.7-2.6-8.4.1-.8.3-1.7.3-2.7l7.1 8c.6.6 1.5.7 2.1.1.7-.5.7-1.5.1-2.1q-7.3-8.2-13.9-16.4v-.1a54.6 54.6 0 0 1-5.4-7.7c-1.6-2.2-1.4-3-.6-4 .5-.5 1-.7 1.6-.7.8 0 1.8.5 2.8 1.5l2.3 2.1a165.2 165.2 0 0 1 13.5 12.9 1.5 1.5 0 0 0 2.2-2l-3.6-3.9s-.6-.7-.5-1.4c0-.6.4-1.1 1-1.7.1 0 .2 0 .2-.2 1.5-1.6 3.3 0 3.7.2.6.5 1.4.5 2 0 .6-.5.6-1.4.1-2 0 0-.3-.5-.3-1.1.1-.6.6-1.2 1.4-1.8 2.4-1.8 4-.4 4.3.1.4.5 1.1.7 1.8.4.6-.2 1-.9.9-1.5 0-.2 0-1.4 1.4-2 1.3-.6 2.4-.9 4.2 1.1 11.5 12.4 21.4 23 6.6 37Z"/>
           </svg>
@@ -313,7 +313,7 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
     }
 </style>
 
-<script define:vars={{ mode, dataViews, defaultView, mergedCountryNames, countryDetails }}>
+<script define:vars={{ mode, dataViews, defaultView, mergedCountryNames, countryDetails, linkPath }}>
     // Color utility functions
     window.rgbToHex = function(rgb) {
         if (!rgb || !rgb.startsWith('rgb')) {
@@ -649,7 +649,7 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
                 return;
             }
             isGridUpdating = true;
-            
+
             const container = document.getElementById("country-grid-container");
             if (!container) {
                 console.warn("Country grid container not found");
@@ -690,120 +690,82 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
 
             // Sort by value (ascending - least to most)
             countriesWithValues.sort((a, b) => {
-                // Convert to numbers for comparison
                 const aNum = Number(a.value);
                 const bNum = Number(b.value);
-                
-                // If both can be treated as numbers, compare numerically
                 if (!isNaN(aNum) && !isNaN(bNum)) {
                     return aNum - bNum;
                 }
-                
-                // Otherwise, fall back to string comparison
                 return String(a.value).localeCompare(String(b.value));
             });
-
-            // Use requestAnimationFrame for better performance with large datasets
             requestAnimationFrame(() => {
-                generateGridHTML(countriesWithValues, container);
+                generateGridHTML(countriesWithValues, container, activeView);
                 isGridUpdating = false;
             });
         }
-        
-        function generateGridHTML(countriesWithValues, container) {
-            // Batch process countries for better performance
-            const BATCH_SIZE = 50;
-            const totalCountries = countriesWithValues.length;
-            
-            if (totalCountries <= BATCH_SIZE) {
-                // Small dataset - process immediately
-                const html = renderCountries(countriesWithValues);
-                container.innerHTML = html || '<p class="text-stone-500 dark:text-stone-400 col-span-full">No data available</p>';
-                addGridEventListeners(container);
-            } else {
-                // Large dataset - use progressive rendering
-                container.innerHTML = '<p class="text-stone-500 dark:text-stone-400 col-span-full">Loading countries...</p>';
-                renderCountriesBatched(countriesWithValues, container, 0);
-            }
+
+        function generateGridHTML(countriesWithValues, container, activeView) {
+            const html = renderCountries(countriesWithValues, activeView);
+            container.innerHTML = html || '<p class="text-stone-500 dark:text-stone-400 col-span-full">No data available</p>';
+            addGridEventListeners(container, activeView);
         }
-        
-        function renderCountries(countries) {
+
+        function renderCountries(countries, activeView) {
             return countries.map(country => {
-                const displayValue = typeof country.value === 'number' 
-                    ? Math.round(country.value).toString() 
-                    : country.value;
-                
-                // Get the color from the actual SVG element's computed style
+                const displayValue = typeof country.value === 'number' ? Math.round(country.value).toString() : country.value;
                 const svg = document.getElementById("worldmap");
-                const bgColor = window.getCountryColor ? 
-                    window.getCountryColor(country.iso, svg) : 
-                    '#e5e7eb'; // Fallback if utility not loaded
-                
-                return `
-                    <div class="country-grid-item cursor-pointer transition-all hover:scale-105 flex items-center gap-1"
-                         data-iso="${country.iso}"
-                         role="gridcell"
-                         tabindex="0"
-                         aria-label="${country.name}: ${displayValue}"
-                         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
-                        <div class="flex-shrink-0 size-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                             style="background-color: ${bgColor};">
-                            ${displayValue}
-                        </div>
-                        <div class="text-xs text-stone-800 dark:text-stone-200 truncate" title="${country.name}">
-                            ${country.name}
-                        </div>
+                const bgColor = window.getCountryColor ? window.getCountryColor(country.iso, svg) : '#e5e7eb';
+
+                const content = `
+                    <div class="flex-shrink-0 size-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                         style="background-color: ${bgColor};">
+                        ${displayValue}
+                    </div>
+                    <div class="text-xs text-stone-800 dark:text-stone-200 truncate" title="${country.name}">
+                        ${country.name}
                     </div>
                 `;
+
+                if (linkPath) {
+                    const linkUrl = `${linkPath}/${country.iso}`;
+                    return `
+                        <a href="${linkUrl}"
+                           class="country-grid-item cursor-pointer transition-all hover:scale-105 flex items-center gap-1 no-underline"
+                           data-iso="${country.iso}"
+                           role="gridcell"
+                           tabindex="0"
+                           aria-label="${country.name}: ${displayValue}"
+                           onmouseenter="highlightCountry('${country.iso}', true)"
+                           onmouseleave="highlightCountry('${country.iso}', false)">
+                            ${content}
+                        </a>
+                    `;
+                } else {
+                    return `
+                        <div class="country-grid-item cursor-pointer transition-all hover:scale-105 flex items-center gap-1"
+                             data-iso="${country.iso}"
+                             role="gridcell"
+                             tabindex="0"
+                             aria-label="${country.name}: ${displayValue}"
+                             onclick="selectCountry('${country.iso}', ${mode === 'modal'})"
+                             onmouseenter="highlightCountry('${country.iso}', true)"
+                             onmouseleave="highlightCountry('${country.iso}', false)"
+                             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
+                            ${content}
+                        </div>
+                    `;
+                }
             }).join('');
         }
-        
-        function renderCountriesBatched(countries, container, startIndex) {
-            const BATCH_SIZE = 50;
-            const endIndex = Math.min(startIndex + BATCH_SIZE, countries.length);
-            const batch = countries.slice(startIndex, endIndex);
-            
-            if (startIndex === 0) {
-                // First batch - replace content
-                container.innerHTML = renderCountries(batch);
-            } else {
-                // Subsequent batches - append content
-                container.insertAdjacentHTML('beforeend', renderCountries(batch));
-            }
-            
-            // Continue with next batch if there are more countries
-            if (endIndex < countries.length) {
-                requestAnimationFrame(() => {
-                    renderCountriesBatched(countries, container, endIndex);
-                });
-            } else {
-                // All countries rendered - add event listeners
-                addGridEventListeners(container);
-            }
+
+
+
+        function addGridEventListeners(container, activeView) {
+            // Event listeners are now handled inline in the HTML
+            // This function is kept for compatibility but no longer needed
         }
         
-        function addGridEventListeners(container) {
-            // Add click and hover handlers to grid items
-            container.querySelectorAll('.country-grid-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const isoCode = item.getAttribute('data-iso');
-                    selectCountry(isoCode, mode === 'modal');
-                });
-                
-                // Add hover handlers for highlighting
-                item.addEventListener('mouseenter', () => {
-                    const isoCode = item.getAttribute('data-iso');
-                    highlightCountry(isoCode, true);
-                });
-                
-                item.addEventListener('mouseleave', () => {
-                    const isoCode = item.getAttribute('data-iso');
-                    highlightCountry(isoCode, false);
-                });
-            });
-        }
-        
-        function highlightCountry(isoCode, highlight) {
+        window.highlightCountry = function(isoCode, highlight) {
+            const svg = document.getElementById("worldmap");
             const countryElement = svg.querySelector(`[data-iso="${isoCode}"] path`);
             if (countryElement && !countryElement.classList.contains('selected')) {
                 if (highlight) {
@@ -833,15 +795,16 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
             selectCountry(e.detail.isoCode);
         });
 
-        function selectCountry(isoCode, forceModal = false) {
+        window.selectCountry = function(isoCode, forceModal = false) {
+            const svg = document.getElementById("worldmap");
             const countryData = countryDetails[isoCode];
             const hasData = countryData && Object.keys(countryData).length > 0;
-            
+
             // Don't select if in modal mode and country has no data
             if ((forceModal || mode === "modal") && !hasData) {
                 return;
             }
-            
+
             if (selectedCountry) {
                 selectedCountry.classList.remove("selected");
                 selectedCountry.style.fill = "";
