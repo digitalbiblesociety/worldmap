@@ -262,10 +262,10 @@ function calculateLegendData(fieldName) {
         legend.style.display = 'block';
     }
     
-    // Update legend on load and when view changes
-    document.addEventListener('DOMContentLoaded', () => {
+    // Function to initialize legend and set up event listeners
+    function initializeLegend() {
         updateLegend();
-        
+
         // Listen for tab changes
         const tabs = document.querySelectorAll('[data-view-id]');
         tabs.forEach(tab => {
@@ -273,8 +273,13 @@ function calculateLegendData(fieldName) {
                 setTimeout(updateLegend, 100); // Small delay to ensure view is updated
             });
         });
-    });
-    
+    }
+
+    // Update legend on both DOMContentLoaded and astro:page-load events
+    document.addEventListener('DOMContentLoaded', initializeLegend);
+    document.addEventListener('astro:page-load', initializeLegend);
+
+    // Also update on astro:after-swap for compatibility
     document.addEventListener('astro:after-swap', () => {
         updateLegend();
     });

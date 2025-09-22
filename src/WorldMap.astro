@@ -460,30 +460,152 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
         let viewBox = { x: 0, y: 0, width: 800, height: 600 };
         let selectedCountry = null;
         let scrollZoomEnabled = false; // Disabled by default
+        let updateURLTimeout = null;
+
+        // Compact encoding/decoding for viewBox
+        function encodeViewBox(vb) {
+            // Round values and convert to base36 for compact representation
+            const x = Math.round(vb.x);
+            const y = Math.round(vb.y);
+            const w = Math.round(vb.width);
+            const h = Math.round(vb.height);
+
+            // Use base36 encoding with underscore separator (more compact than comma)
+            // Add offset of 10000 to handle negative values, then convert to base36
+            const encoded = [
+                (x + 10000).toString(36),
+                (y + 10000).toString(36),
+                w.toString(36),
+                h.toString(36)
+            ].join('_');
+
+            return encoded;
+        }
+
+        function decodeViewBox(encoded) {
+            try {
+                const parts = encoded.split('_');
+                if (parts.length === 4) {
+                    const x = parseInt(parts[0], 36) - 10000;
+                    const y = parseInt(parts[1], 36) - 10000;
+                    const w = parseInt(parts[2], 36);
+                    const h = parseInt(parts[3], 36);
+
+                    if (!isNaN(x) && !isNaN(y) && !isNaN(w) && !isNaN(h)) {
+                        return { x, y, width: w, height: h };
+                    }
+                }
+            } catch (error) {
+                console.warn('Failed to decode viewBox:', error);
+            }
+            return null;
+        }
+
+        // Parse mapView from URL parameter
+        function parseMapViewFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const mapView = urlParams.get('mapView');
+
+            if (mapView) {
+                // Try new compact format first
+                const decoded = decodeViewBox(mapView);
+                if (decoded) {
+                    return decoded;
+                }
+
+                // Fallback to old comma-separated format for backwards compatibility
+                try {
+                    const parts = mapView.split(',').map(Number);
+                    if (parts.length === 4 && parts.every(n => !isNaN(n))) {
+                        return {
+                            x: parts[0],
+                            y: parts[1],
+                            width: parts[2],
+                            height: parts[3]
+                        };
+                    }
+                } catch (error) {
+                    console.warn('Failed to parse mapView parameter:', error);
+                }
+            }
+            return null;
+        }
+
+        // Parse dataView from URL parameter
+        function parseDataViewFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('dataView');
+        }
+
+        // Serialize viewBox to URL format (using compact encoding)
+        function serializeViewBox(vb) {
+            return encodeViewBox(vb);
+        }
+
+        // Update URL with current viewBox and dataView
+        function updateURL() {
+            if (updateURLTimeout) {
+                clearTimeout(updateURLTimeout);
+            }
+
+            updateURLTimeout = setTimeout(() => {
+                const urlParams = new URLSearchParams(window.location.search);
+
+                // Update mapView
+                const serialized = serializeViewBox(viewBox);
+                urlParams.set('mapView', serialized);
+
+                // Update dataView
+                const currentView = svg.getAttribute('data-current-view');
+                if (currentView) {
+                    urlParams.set('dataView', currentView);
+                }
+
+                const newURL = `${window.location.pathname}?${urlParams.toString()}`;
+                window.history.replaceState({}, '', newURL);
+            }, 500); // Debounce URL updates by 500ms
+        }
+
+        // Backward compatibility alias
+        const updateURLWithViewBox = updateURL;
 
         function setInitialViewBox() {
-            const svgRect = svg.getBoundingClientRect();
-            const contentWidth = 2528;
-            const contentHeight = 1200;
-            const contentAspectRatio = contentWidth / contentHeight;
-            const containerAspectRatio = svgRect.width / svgRect.height;
+            // First check if there's a mapView parameter in the URL
+            const urlViewBox = parseMapViewFromURL();
 
-            let viewBoxWidth, viewBoxHeight;
-            if (containerAspectRatio > contentAspectRatio) {
-                viewBoxHeight = contentHeight;
-                viewBoxWidth = contentHeight * containerAspectRatio;
+            if (urlViewBox) {
+                // Use viewBox from URL
+                viewBox = urlViewBox;
+                svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+                svg.classList.add("ready");
             } else {
-                viewBoxWidth = contentWidth;
-                viewBoxHeight = contentWidth / containerAspectRatio;
+                // Calculate default viewBox
+                const svgRect = svg.getBoundingClientRect();
+                const contentWidth = 2528;
+                const contentHeight = 1200;
+                const contentAspectRatio = contentWidth / contentHeight;
+                const containerAspectRatio = svgRect.width / svgRect.height;
+
+                let viewBoxWidth, viewBoxHeight;
+                if (containerAspectRatio > contentAspectRatio) {
+                    viewBoxHeight = contentHeight;
+                    viewBoxWidth = contentHeight * containerAspectRatio;
+                } else {
+                    viewBoxWidth = contentWidth;
+                    viewBoxHeight = contentWidth / containerAspectRatio;
+                }
+                viewBox = {
+                    x: 83 - (viewBoxWidth - contentWidth) / 2,
+                    y: 45 - (viewBoxHeight - contentHeight) / 2,
+                    width: viewBoxWidth,
+                    height: viewBoxHeight,
+                };
+                svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+                svg.classList.add("ready");
+
+                // Update URL with initial viewBox and dataView
+                updateURL();
             }
-            viewBox = {
-                x: 83 - (viewBoxWidth - contentWidth) / 2,
-                y: 45 - (viewBoxHeight - contentHeight) / 2,
-                width: viewBoxWidth,
-                height: viewBoxHeight,
-            };
-            svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
-            svg.classList.add("ready");
         }
 
         function showTooltip(event) {
@@ -521,6 +643,7 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
                 svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
                 startX = e.clientX;
                 startY = e.clientY;
+                updateURLWithViewBox();
             }
         });
 
@@ -558,6 +681,7 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
                         viewBox.width = newWidth;
                         viewBox.height = newHeight;
                         svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+                        updateURLWithViewBox();
                     }
                 }
             } catch (error) {
@@ -630,6 +754,14 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
 
             // Update country grid with debouncing
             debouncedUpdateCountryGrid(viewId);
+
+            // Update legend when switching views
+            if (typeof updateLegend === 'function') {
+                updateLegend();
+            }
+
+            // Update URL with new data view
+            updateURL();
         }
 
         // Debounced version of updateCountryGrid for performance
@@ -785,10 +917,20 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
 
         initializeDataTabs();
 
-        // Initialize country grid with default view
-        const initialView = defaultView || (dataViews && dataViews.length > 0 ? dataViews[0].id : null);
-        if (initialView) {
+        // Check for dataView in URL, otherwise use default
+        const urlDataView = parseDataViewFromURL();
+        let initialView = defaultView || (dataViews && dataViews.length > 0 ? dataViews[0].id : null);
+
+        // If URL has a valid dataView, use it
+        if (urlDataView && dataViews.some(view => view.id === urlDataView)) {
+            initialView = urlDataView;
+            // Apply the view from URL
+            switchDataView(initialView);
+        } else if (initialView) {
+            // Initialize country grid with default view
             updateCountryGrid(initialView);
+            // Update URL with initial view
+            updateURL();
         }
 
         document.addEventListener("countrySelected", (e) => {
@@ -827,6 +969,7 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
                 viewBox.x = centerX - viewBox.width / 2;
                 viewBox.y = centerY - viewBox.height / 2;
                 svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+                updateURLWithViewBox();
 
                 if (forceModal || mode === "modal") {
                     openCountryModal(isoCode);
