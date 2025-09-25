@@ -153,6 +153,23 @@ const { id, classes = {} } = Astro.props;
                 return;
             }
 
+
+            if (formatter === "flag") {
+                console.log('flagelement',el)
+                const useElement = el.querySelector('use');
+                if (useElement && value !== "") {
+                    const flagUrl = `/images/flags.svg#${value}`;
+                    useElement.setAttribute('href', flagUrl);
+                    useElement.setAttribute('xlink:href', `#${value}`);
+                } else if (value !== "") {
+                    // If no use element exists, create one
+                    el.innerHTML = '<use href="/images/flags.svg#' + value + '" xlink:href="#' + value + '"></use>';
+                }
+                el.style.display = "";
+                return; // Exit early for flag elements
+            }
+
+            // Handle other formatters
             if (formatter && value !== "") {
                 if (formatter === "number") {
                     value = parseInt(String(value).replace(/,/g, "")).toLocaleString();
@@ -160,16 +177,17 @@ const { id, classes = {} } = Astro.props;
                     value = (parseInt(String(value).replace(/,/g, "")) / 1000000).toFixed(1);
                 } else if (formatter === "link") {
                     el.href = el.href + value
+                    return; // Don't set textContent for link formatter
                 }
             }
-            if(formatter != "link") {
-                // Add space before percentage values for church_growth
-                if (fillValue === "countryData.church_growth" && value && !value.toString().startsWith(" ")) {
-                    value = " " + value;
-                }
-                el.textContent = value;
-                el.style.display = "";
+
+            // Set text content for non-flag elements
+            // Add space before percentage values for church_growth
+            if (fillValue === "countryData.church_growth" && value && !value.toString().startsWith(" ")) {
+                value = " " + value;
             }
+            el.textContent = value;
+            el.style.display = "";
         });
 
         hideEmptyGridItems(element);

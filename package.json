@@ -1,6 +1,6 @@
 {
   "name": "astro-worldmap-choropleth",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Interactive world map component for Astro with choropleth data visualization, country grid, and customizable views",
   "type": "module",
   "exports": {
