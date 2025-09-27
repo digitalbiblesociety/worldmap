@@ -96,6 +96,8 @@ interface Props {
     defaultView?: string;
     /** Custom labels for legend values */
     legendLabels?: LegendLabels;
+    /** Base path for PDF files (e.g., '/profiles/2025_') */
+    basepath?: string;
 }
 
 const defaultClasses = {
@@ -123,6 +125,7 @@ const {
     normalizedFields = {},
     dataViews = [],
     defaultView,
+    basepath = "/profiles/",
 } = Astro.props;
 
 const mergedClasses = {
@@ -313,7 +316,7 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
     }
 </style>
 
-<script define:vars={{ mode, dataViews, defaultView, mergedCountryNames, countryDetails, linkPath }}>
+<script define:vars={{ mode, dataViews, defaultView, mergedCountryNames, countryDetails, linkPath, basepath }}>
     // Color utility functions
     window.rgbToHex = function(rgb) {
         if (!rgb || !rgb.startsWith('rgb')) {
@@ -418,7 +421,7 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
 
         if (originalSlotTemplate) {
             const clonedContent = originalSlotTemplate.cloneNode(true);
-            window.populateDataAttributes(clonedContent, isoCode, countryName, countryData);
+            window.populateDataAttributes(clonedContent, isoCode, countryName, countryData, basepath);
             content = clonedContent.outerHTML;
         } else {
             content = `<h2 class="text-2xl font-bold mb-4 text-stone-900 dark:text-white">${countryName}</h2>

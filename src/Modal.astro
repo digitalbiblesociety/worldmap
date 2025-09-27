@@ -126,8 +126,17 @@ const { id, classes = {} } = Astro.props;
         }, 300);
     }
 
-    function populateDataAttributes(element, isoCode, countryName, countryData) {
+    function populateDataAttributes(element, isoCode, countryName, countryData, basepath = "/profiles/") {
         const elementsToFill = element.querySelectorAll("[data-fill]");
+        const pdfLinkElements = element.querySelectorAll("[data-format='pdflink']");
+
+        console.log('hi')
+        pdfLinkElements.forEach((el) => {
+            console.log('el',el)
+            const elementBasepath = el.getAttribute("data-basepath") || basepath;
+            const pdfUrl = elementBasepath.replace('{isoCode}', isoCode) + '.pdf';
+            el.href = pdfUrl;
+        });
 
         elementsToFill.forEach((el) => {
             const fillValue = el.getAttribute("data-fill");
