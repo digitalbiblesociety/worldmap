@@ -284,12 +284,12 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
 
     /* Group 4 - Some (ranks 51-55) */
     svg[data-current-view="access"] .choropleth-access-4 path {
-        fill: #fc4e2a; /* orange-red */
+        fill: #fd8d3c; /* light orange */
     }
 
     /* Group 5 - Minimal (ranks 56-88) */
     svg[data-current-view="access"] .choropleth-access-5 path {
-        fill: #fd8d3c; /* orange */
+        fill: #feb24c; /* lighter orange */
     }
 
     /* Needs rank uses 10 preset groups */
@@ -463,6 +463,7 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
         if (!countryDetails[isoCode] || Object.keys(countryData).length === 0) {
             return;
         }
+
 
         captureSlotTemplate();
 

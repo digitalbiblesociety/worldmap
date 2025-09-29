@@ -24,7 +24,7 @@ interface Props {
 const defaultClasses = {
     container: "bg-white dark:bg-stone-950 rounded-lg p-4 z-30",
     title: "text-sm text-center font-semibold text-stone-900 dark:text-white mb-2",
-    items: "grid grid-cols-5 gap-1",
+    items: "grid grid-cols-5 gap-2",
     colorBox: "w-6 h-6 rounded border border-stone-300 dark:border-stone-600",
     label: "text-xs text-stone-700 dark:text-stone-300"
 };
@@ -242,10 +242,10 @@ function calculateLegendData(fieldName) {
             }
             
             const itemDiv = document.createElement('div');
-            itemDiv.className = 'flex justify-center items-center gap-2';
+            itemDiv.className = 'flex items-center bg-stone-100 dark:bg-stone-900 rounded-sm';
             
             const colorBox = document.createElement('div');
-            colorBox.className = 'w-6 h-6 rounded border border-stone-300 dark:border-stone-600';
+            colorBox.className = 'w-8 h-full mr-4 rounded';
             colorBox.setAttribute('data-value', normalizedValue);
             
             

@@ -155,6 +155,12 @@ const { id, classes = {} } = Astro.props;
                 value = countryData[key];
                 hasData = value !== undefined && value !== null && value !== "";
                 if (value === 0) hasData = true;
+
+                // Special handling for needs_range_desc - show "not estimated" when null
+                if (key === "needs_range_desc" && (value === null || value === undefined || value === "")) {
+                    value = "not estimated";
+                    hasData = true;
+                }
             }
 
             if (!hasData) {
