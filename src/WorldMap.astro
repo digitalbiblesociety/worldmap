@@ -266,32 +266,81 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
     }
     
     /* Choropleth color scales for each view */
-    /* Value 3 - Low (red) */
-    svg[data-current-view="access"] .choropleth-access-3 path,
-    svg[data-current-view="needs"] .choropleth-needs-3 path,
-    svg[data-current-view="combined"] .choropleth-combined-3 path {
-        fill: #f87171; /* red-400 */
+    /* Access rank uses groups 1-5 (preset ranges) */
+    /* Group 1 - Extreme (ranks 1-15) */
+    svg[data-current-view="access"] .choropleth-access-1 path {
+        fill: #800026; /* darkest red */
     }
-    
-    /* Value 4 - Medium-Low (amber) */
-    svg[data-current-view="access"] .choropleth-access-4 path,
-    svg[data-current-view="needs"] .choropleth-needs-4 path,
-    svg[data-current-view="combined"] .choropleth-combined-4 path {
-        fill: #fbbf24; /* amber-400 */
+
+    /* Group 2 - Severe (ranks 16-33) */
+    svg[data-current-view="access"] .choropleth-access-2 path {
+        fill: #bd0026; /* dark red */
     }
-    
-    /* Value 5 - Medium-High (emerald) */
-    svg[data-current-view="access"] .choropleth-access-5 path,
-    svg[data-current-view="needs"] .choropleth-needs-5 path,
-    svg[data-current-view="combined"] .choropleth-combined-5 path {
-        fill: #34d399; /* emerald-400 */
+
+    /* Group 3 - Considerable (ranks 34-50) */
+    svg[data-current-view="access"] .choropleth-access-3 path {
+        fill: #e31a1c; /* red */
     }
-    
-    /* Value 6 - High (blue) */
-    svg[data-current-view="access"] .choropleth-access-6 path,
-    svg[data-current-view="needs"] .choropleth-needs-6 path,
-    svg[data-current-view="combined"] .choropleth-combined-6 path {
-        fill: #3b82f6; /* blue-500 */
+
+    /* Group 4 - Some (ranks 51-55) */
+    svg[data-current-view="access"] .choropleth-access-4 path {
+        fill: #fc4e2a; /* orange-red */
+    }
+
+    /* Group 5 - Minimal (ranks 56-88) */
+    svg[data-current-view="access"] .choropleth-access-5 path {
+        fill: #fd8d3c; /* orange */
+    }
+
+    /* Needs rank uses 10 preset groups */
+    /* Group 1: >10m (ranks 1-4) */
+    svg[data-current-view="needs"] .choropleth-needs-1 path {
+        fill: #004d40; /* Dark Teal */
+    }
+
+    /* Group 2: 5-10m (ranks 5-6) */
+    svg[data-current-view="needs"] .choropleth-needs-2 path {
+        fill: #00675b; /* Dark Green-Teal */
+    }
+
+    /* Group 3: 3-5m (ranks 7-9) */
+    svg[data-current-view="needs"] .choropleth-needs-3 path {
+        fill: #00806d; /* Medium Teal */
+    }
+
+    /* Group 4: 1-3m (ranks 10-19) */
+    svg[data-current-view="needs"] .choropleth-needs-4 path {
+        fill: #229e82; /* Strong Green-Teal */
+    }
+
+    /* Group 5: 500k-1m (ranks 20-28) */
+    svg[data-current-view="needs"] .choropleth-needs-5 path {
+        fill: #3fbf9c; /* Vibrant Medium Green-Teal */
+    }
+
+    /* Group 6: 250-500k (ranks 29-32) */
+    svg[data-current-view="needs"] .choropleth-needs-6 path {
+        fill: #66d1ad; /* Light Minty Green */
+    }
+
+    /* Group 7: 100-250k (ranks 33-38) */
+    svg[data-current-view="needs"] .choropleth-needs-7 path {
+        fill: #8ce3bf; /* Soft Mint Green */
+    }
+
+    /* Group 8: 50-100k (ranks 39-45) */
+    svg[data-current-view="needs"] .choropleth-needs-8 path {
+        fill: #b4f0d4; /* Pale Mint */
+    }
+
+    /* Group 9: 10-50k (ranks 46-59) */
+    svg[data-current-view="needs"] .choropleth-needs-9 path {
+        fill: #d2f8e6; /* Very Light Mint */
+    }
+
+    /* Group 10: <10k (ranks 60-76) */
+    svg[data-current-view="needs"] .choropleth-needs-10 path {
+        fill: #e6fcf0; /* Lightest Mint Green */
     }
     
     /* Selected country override */

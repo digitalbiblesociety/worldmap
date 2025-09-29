@@ -24,7 +24,7 @@ interface Props {
 const defaultClasses = {
     container: "bg-white dark:bg-stone-950 rounded-lg p-4 z-30",
     title: "text-sm text-center font-semibold text-stone-900 dark:text-white mb-2",
-    items: "grid grid-cols-4 gap-1",
+    items: "grid grid-cols-5 gap-1",
     colorBox: "w-6 h-6 rounded border border-stone-300 dark:border-stone-600",
     label: "text-xs text-stone-700 dark:text-stone-300"
 };
@@ -156,20 +156,44 @@ function calculateLegendData(fieldName) {
         dataArr.forEach((item) => {
             const rawValue = Number(item[primaryField]);
             if (!isNaN(rawValue)) {
-                // Use the same scaleValueToBucket logic (assuming scale 3-6)
                 let normalizedValue;
-                if (min === max) {
-                    normalizedValue = Math.round((3 + 6) / 2); // midpoint
-                } else if (rawValue <= min) {
-                    normalizedValue = 3;
-                } else if (rawValue >= max) {
-                    normalizedValue = 6;
-                } else {
-                    const ratio = (rawValue - min) / (max - min);
-                    const scaled = 3 + ratio * (6 - 3);
-                    normalizedValue = Math.round(scaled);
+                // Use preset groups for access_rank (1-5)
+                if (primaryField === 'access_rank') {
+                    if (rawValue >= 1 && rawValue <= 15) normalizedValue = 1;
+                    else if (rawValue >= 16 && rawValue <= 33) normalizedValue = 2;
+                    else if (rawValue >= 34 && rawValue <= 50) normalizedValue = 3;
+                    else if (rawValue >= 51 && rawValue <= 55) normalizedValue = 4;
+                    else if (rawValue >= 56 && rawValue <= 88) normalizedValue = 5;
                 }
-                normalizedValues.add(normalizedValue);
+                // Use preset groups for needs_rank (1-10)
+                else if (primaryField === 'needs_rank') {
+                    if (rawValue >= 1 && rawValue <= 4) normalizedValue = 1;
+                    else if (rawValue >= 5 && rawValue <= 6) normalizedValue = 2;
+                    else if (rawValue >= 7 && rawValue <= 9) normalizedValue = 3;
+                    else if (rawValue >= 10 && rawValue <= 19) normalizedValue = 4;
+                    else if (rawValue >= 20 && rawValue <= 28) normalizedValue = 5;
+                    else if (rawValue >= 29 && rawValue <= 32) normalizedValue = 6;
+                    else if (rawValue >= 33 && rawValue <= 38) normalizedValue = 7;
+                    else if (rawValue >= 39 && rawValue <= 45) normalizedValue = 8;
+                    else if (rawValue >= 46 && rawValue <= 59) normalizedValue = 9;
+                    else if (rawValue >= 60 && rawValue <= 76) normalizedValue = 10;
+                } else {
+                    // Use the same scaleValueToBucket logic for other fields (scale 3-6)
+                    if (min === max) {
+                        normalizedValue = Math.round((3 + 6) / 2); // midpoint
+                    } else if (rawValue <= min) {
+                        normalizedValue = 3;
+                    } else if (rawValue >= max) {
+                        normalizedValue = 6;
+                    } else {
+                        const ratio = (rawValue - min) / (max - min);
+                        const scaled = 3 + ratio * (6 - 3);
+                        normalizedValue = Math.round(scaled);
+                    }
+                }
+                if (normalizedValue !== undefined) {
+                    normalizedValues.add(normalizedValue);
+                }
             }
         });
         
@@ -181,18 +205,40 @@ function calculateLegendData(fieldName) {
         
         // Generate legend items only for values that exist
         sortedValues.forEach((normalizedValue, index) => {
-            // Find the raw value range that maps to this normalized value
-            // Using reverse calculation of scaleValueToBucket logic
-            const ratio1 = (normalizedValue - 0.5 - 3) / (6 - 3);
-            const ratio2 = (normalizedValue + 0.5 - 3) / (6 - 3);
-            
             let rangeMin, rangeMax;
-            if (min === max) {
-                rangeMin = min;
-                rangeMax = max;
+
+            // Use preset ranges for access_rank
+            if (primaryField === 'access_rank') {
+                if (normalizedValue === 1) { rangeMin = 1; rangeMax = 15; }
+                else if (normalizedValue === 2) { rangeMin = 16; rangeMax = 33; }
+                else if (normalizedValue === 3) { rangeMin = 34; rangeMax = 50; }
+                else if (normalizedValue === 4) { rangeMin = 51; rangeMax = 55; }
+                else if (normalizedValue === 5) { rangeMin = 56; rangeMax = 88; }
+            }
+            // Use preset ranges for needs_rank
+            else if (primaryField === 'needs_rank') {
+                if (normalizedValue === 1) { rangeMin = 1; rangeMax = 4; }
+                else if (normalizedValue === 2) { rangeMin = 5; rangeMax = 6; }
+                else if (normalizedValue === 3) { rangeMin = 7; rangeMax = 9; }
+                else if (normalizedValue === 4) { rangeMin = 10; rangeMax = 19; }
+                else if (normalizedValue === 5) { rangeMin = 20; rangeMax = 28; }
+                else if (normalizedValue === 6) { rangeMin = 29; rangeMax = 32; }
+                else if (normalizedValue === 7) { rangeMin = 33; rangeMax = 38; }
+                else if (normalizedValue === 8) { rangeMin = 39; rangeMax = 45; }
+                else if (normalizedValue === 9) { rangeMin = 46; rangeMax = 59; }
+                else if (normalizedValue === 10) { rangeMin = 60; rangeMax = 76; }
             } else {
-                rangeMin = normalizedValue === 3 ? min : min + ratio1 * (max - min);
-                rangeMax = normalizedValue === 6 ? max : min + ratio2 * (max - min);
+                // Use reverse calculation of scaleValueToBucket logic for other fields
+                const ratio1 = (normalizedValue - 0.5 - 3) / (6 - 3);
+                const ratio2 = (normalizedValue + 0.5 - 3) / (6 - 3);
+
+                if (min === max) {
+                    rangeMin = min;
+                    rangeMax = max;
+                } else {
+                    rangeMin = normalizedValue === 3 ? min : min + ratio1 * (max - min);
+                    rangeMax = normalizedValue === 6 ? max : min + ratio2 * (max - min);
+                }
             }
             
             const itemDiv = document.createElement('div');
