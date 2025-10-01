@@ -110,7 +110,7 @@ const defaultClasses = {
     tooltip: "absolute hidden bg-stone-800 text-white px-2 rounded-md pointer-events-none",
     modal: {
         overlay: "fixed inset-0 bg-black bg-opacity-50 z-50 transition-opacity duration-300",
-        modal: "fixed top-[82px] right-0 h-screen bg-white dark:bg-stone-800 shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-full",
+        modal: "fixed top-0 right-0 h-screen bg-white dark:bg-stone-800 shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-full",
         closeBtn: "absolute top-4 right-4 text-2xl text-stone-600 dark:text-stone-300 cursor-pointer z-10",
         content: "p-6 pt-16 h-full overflow-y-auto",
     },
@@ -902,7 +902,7 @@ const normalizedDetails = createNormalizedObject(countryDetails, normalizedField
 
                 const content = `
                     <div class="flex-shrink-0 size-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                         style="background-color: ${bgColor};">
+                         style="background-color: ${bgColor};text-shadow: 1px 1px 2px #000;">
                         ${displayValue}
                     </div>
                     <div class="text-xs text-stone-800 dark:text-stone-200 truncate" title="${country.name}">
