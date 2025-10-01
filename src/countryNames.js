@@ -41,7 +41,7 @@ export const defaultCountryNames = {
     CF:	"Central African Republic",
     CG:	"Congo",
     CH:	"Switzerland",
-    CI:	"Ivory Coas",
+    CI:	"Ivory Coast",
     CK:	"Cook Islands",
     CL:	"Chile",
     CM:	"Cameroon",
